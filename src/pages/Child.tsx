@@ -3,14 +3,24 @@ import { useSearchParams } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Shield, Gauge, Clock, MapPin, AlertTriangle, CheckCircle } from 'lucide-react';
-import type { Database } from '@/integrations/supabase/types';
 
-type DrivingToken = Database['public']['Tables']['driving_tokens']['Row'];
+// Validated token data from secure RPC function (minimal exposure)
+interface ValidatedToken {
+  token_id: string;
+  is_valid: boolean;
+  speed_limit: number;
+  time_limit_minutes: number;
+  distance_limit_km: number;
+  geofence_center_lat: number;
+  geofence_center_lng: number;
+  geofence_radius_km: number;
+  child_name: string;
+}
 
 export default function Child() {
   const [searchParams] = useSearchParams();
   const tokenCode = searchParams.get('token');
-  const [token, setToken] = useState<DrivingToken | null>(null);
+  const [token, setToken] = useState<ValidatedToken | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
@@ -24,16 +34,22 @@ export default function Child() {
   }, [tokenCode]);
 
   const fetchToken = async () => {
-    const { data, error } = await supabase
-      .from('driving_tokens')
-      .select('*')
-      .eq('token_code', tokenCode)
-      .maybeSingle();
+    // Use secure RPC function instead of direct table query
+    const { data, error: rpcError } = await supabase.rpc('validate_driving_token', {
+      p_token_code: tokenCode?.toUpperCase() || ''
+    });
 
-    if (error || !data) {
+    if (rpcError) {
+      setError('Token validation failed');
+      setLoading(false);
+      return;
+    }
+
+    const result = data?.[0];
+    if (!result || !result.is_valid) {
       setError('Invalid or expired token');
     } else {
-      setToken(data);
+      setToken(result as ValidatedToken);
     }
     setLoading(false);
   };
@@ -94,7 +110,7 @@ export default function Child() {
 
         <Card className="bg-secondary/30">
           <CardContent className="p-4 text-center text-sm text-muted-foreground">
-            <p>Use token <code className="bg-secondary px-2 py-1 rounded">{token.token_code}</code> in the Test Car Simulator</p>
+            <p>Use your token in the Test Car Simulator to begin driving</p>
           </CardContent>
         </Card>
       </div>
