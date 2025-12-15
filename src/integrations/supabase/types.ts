@@ -246,6 +246,25 @@ export type Database = {
     }
     Functions: {
       generate_token_code: { Args: never; Returns: string }
+      session_has_token: {
+        Args: { p_session_id: string; p_token_id: string }
+        Returns: boolean
+      }
+      user_owns_token: { Args: { p_token_id: string }; Returns: boolean }
+      validate_driving_token: {
+        Args: { p_token_code: string }
+        Returns: {
+          child_name: string
+          distance_limit_km: number
+          geofence_center_lat: number
+          geofence_center_lng: number
+          geofence_radius_km: number
+          is_valid: boolean
+          speed_limit: number
+          time_limit_minutes: number
+          token_id: string
+        }[]
+      }
     }
     Enums: {
       session_status: "pending" | "active" | "completed" | "violated"
