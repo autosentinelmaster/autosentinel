@@ -15,6 +15,8 @@ import {
 import { toast } from 'sonner';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import type { Database } from '@/integrations/supabase/types';
+import { VoiceTokenCreator } from '@/components/VoiceTokenCreator';
+import { SessionSummary } from '@/components/SessionSummary';
 
 type DrivingToken = Database['public']['Tables']['driving_tokens']['Row'];
 type DrivingSession = Database['public']['Tables']['driving_sessions']['Row'];
@@ -309,9 +311,20 @@ export default function Dashboard() {
           </DialogTrigger>
           <DialogContent className="sm:max-w-md">
             <DialogHeader>
-              <DialogTitle className="font-display">Create Driving Permission</DialogTitle>
+              <DialogTitle className="font-display flex items-center justify-between">
+                Create Driving Permission
+                <VoiceTokenCreator 
+                  onTokenParsed={(params) => {
+                    if (params.childName) setChildName(params.childName);
+                    if (params.speedLimit) setSpeedLimit([params.speedLimit]);
+                    if (params.timeLimit) setTimeLimit([params.timeLimit]);
+                    if (params.distanceLimit) setDistanceLimit([params.distanceLimit]);
+                    if (params.geofenceRadius) setGeofenceRadius([params.geofenceRadius]);
+                  }}
+                />
+              </DialogTitle>
               <DialogDescription>
-                Set restrictions and generate a token for vehicle access
+                Set restrictions and generate a token for vehicle access. Use voice or type manually.
               </DialogDescription>
             </DialogHeader>
             <div className="space-y-6 py-4">
@@ -509,6 +522,7 @@ export default function Dashboard() {
                                   </p>
                                 </div>
                               </div>
+                              <SessionSummary session={session} token={token} />
                             </div>
                           )}
                         </div>
