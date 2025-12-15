@@ -8,11 +8,22 @@ import { Car, Gauge, Clock, MapPin, AlertTriangle, Play, Square, Key } from 'luc
 import { toast } from 'sonner';
 import type { Database } from '@/integrations/supabase/types';
 
-type DrivingToken = Database['public']['Tables']['driving_tokens']['Row'];
+// Validated token data from RPC function (minimal exposure)
+interface ValidatedToken {
+  token_id: string;
+  is_valid: boolean;
+  speed_limit: number;
+  time_limit_minutes: number;
+  distance_limit_km: number;
+  geofence_center_lat: number;
+  geofence_center_lng: number;
+  geofence_radius_km: number;
+  child_name: string;
+}
 
 export default function TestCar() {
   const [tokenCode, setTokenCode] = useState('');
-  const [token, setToken] = useState<DrivingToken | null>(null);
+  const [token, setToken] = useState<ValidatedToken | null>(null);
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [driving, setDriving] = useState(false);
   const [speed, setSpeed] = useState([0]);
@@ -26,23 +37,23 @@ export default function TestCar() {
   const isOutsideGeofence = distanceFromCenter > geofenceRadius;
 
   const verifyToken = async () => {
-    const { data, error } = await supabase
-      .from('driving_tokens')
-      .select('*')
-      .eq('token_code', tokenCode.toUpperCase())
-      .maybeSingle();
+    // Use secure RPC function instead of direct table query
+    const { data, error } = await supabase.rpc('validate_driving_token', {
+      p_token_code: tokenCode.toUpperCase()
+    });
 
-    if (error || !data) {
-      toast.error('Invalid token');
+    if (error) {
+      toast.error('Token validation failed');
       return;
     }
 
-    if (new Date(data.expires_at) < new Date()) {
-      toast.error('Token expired');
+    const result = data?.[0];
+    if (!result || !result.is_valid) {
+      toast.error('Invalid or expired token');
       return;
     }
 
-    setToken(data);
+    setToken(result as ValidatedToken);
     toast.success('Token verified! Ready to drive.');
   };
 
@@ -50,7 +61,7 @@ export default function TestCar() {
     if (!token) return;
 
     const { data, error } = await supabase.from('driving_sessions').insert({
-      token_id: token.id,
+      token_id: token.token_id,
       status: 'active',
       start_time: new Date().toISOString(),
     }).select().single();
@@ -60,7 +71,7 @@ export default function TestCar() {
       return;
     }
 
-    await supabase.from('driving_tokens').update({ is_active: true, is_used: true }).eq('id', token.id);
+    await supabase.from('driving_tokens').update({ is_active: true, is_used: true }).eq('id', token.token_id);
 
     setSessionId(data.id);
     setDriving(true);
@@ -75,7 +86,7 @@ export default function TestCar() {
       end_time: new Date().toISOString(),
     }).eq('id', sessionId);
 
-    await supabase.from('driving_tokens').update({ is_active: false }).eq('id', token.id);
+    await supabase.from('driving_tokens').update({ is_active: false }).eq('id', token.token_id);
 
     setDriving(false);
     toast.success('Drive ended!');
@@ -97,7 +108,7 @@ export default function TestCar() {
         if (speed[0] > token.speed_limit) {
           await supabase.from('alerts').insert({
             session_id: sessionId,
-            token_id: token.id,
+            token_id: token.token_id,
             message: `Speed violation: ${speed[0]} km/h (limit: ${token.speed_limit} km/h)`,
           });
           await supabase.from('driving_sessions').update({
@@ -108,7 +119,7 @@ export default function TestCar() {
         if (isOutsideGeofence) {
           await supabase.from('alerts').insert({
             session_id: sessionId,
-            token_id: token.id,
+            token_id: token.token_id,
             message: `Geofence breach: Vehicle is ${distanceFromCenter.toFixed(1)} km from center`,
           });
         }
