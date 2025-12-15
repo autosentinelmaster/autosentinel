@@ -66,6 +66,7 @@ export type Database = {
           end_time: string | null
           id: string
           max_speed_reached: number
+          session_secret: string | null
           start_time: string | null
           status: Database["public"]["Enums"]["session_status"]
           token_id: string
@@ -81,6 +82,7 @@ export type Database = {
           end_time?: string | null
           id?: string
           max_speed_reached?: number
+          session_secret?: string | null
           start_time?: string | null
           status?: Database["public"]["Enums"]["session_status"]
           token_id: string
@@ -96,6 +98,7 @@ export type Database = {
           end_time?: string | null
           id?: string
           max_speed_reached?: number
+          session_secret?: string | null
           start_time?: string | null
           status?: Database["public"]["Enums"]["session_status"]
           token_id?: string
@@ -245,10 +248,44 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      create_session_alert: {
+        Args: {
+          p_message: string
+          p_session_id: string
+          p_session_secret: string
+        }
+        Returns: boolean
+      }
       generate_token_code: { Args: never; Returns: string }
       session_has_token: {
         Args: { p_session_id: string; p_token_id: string }
         Returns: boolean
+      }
+      start_driving_session: {
+        Args: { p_token_code: string }
+        Returns: {
+          error_message: string
+          session_id: string
+          session_secret: string
+          success: boolean
+        }[]
+      }
+      stop_driving_session: {
+        Args: { p_session_id: string; p_session_secret: string }
+        Returns: boolean
+      }
+      update_session_telemetry: {
+        Args: {
+          p_distance_km: number
+          p_session_id: string
+          p_session_secret: string
+          p_speed: number
+        }
+        Returns: {
+          current_speed_limit: number
+          speed_violation: boolean
+          success: boolean
+        }[]
       }
       user_owns_token: { Args: { p_token_id: string }; Returns: boolean }
       validate_driving_token: {

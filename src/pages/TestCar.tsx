@@ -6,7 +6,6 @@ import { Input } from '@/components/ui/input';
 import { Slider } from '@/components/ui/slider';
 import { Car, Gauge, Clock, MapPin, AlertTriangle, Play, Square, Key } from 'lucide-react';
 import { toast } from 'sonner';
-import type { Database } from '@/integrations/supabase/types';
 
 // Validated token data from RPC function (minimal exposure)
 interface ValidatedToken {
@@ -25,12 +24,14 @@ export default function TestCar() {
   const [tokenCode, setTokenCode] = useState('');
   const [token, setToken] = useState<ValidatedToken | null>(null);
   const [sessionId, setSessionId] = useState<string | null>(null);
+  const [sessionSecret, setSessionSecret] = useState<string | null>(null);
   const [driving, setDriving] = useState(false);
   const [speed, setSpeed] = useState([0]);
   const [distance, setDistance] = useState(0);
   const [elapsed, setElapsed] = useState(0);
   const [carPosition, setCarPosition] = useState({ x: 50, y: 50 });
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
+  const lastAlertRef = useRef<{ speed: number; geofence: number }>({ speed: 0, geofence: 0 });
 
   const geofenceRadius = token ? Number(token.geofence_radius_km) : 5;
   const distanceFromCenter = Math.sqrt(Math.pow(carPosition.x - 50, 2) + Math.pow(carPosition.y - 50, 2)) / 40 * geofenceRadius;
@@ -60,68 +61,77 @@ export default function TestCar() {
   const startDrive = async () => {
     if (!token) return;
 
-    const { data, error } = await supabase.from('driving_sessions').insert({
-      token_id: token.token_id,
-      status: 'active',
-      start_time: new Date().toISOString(),
-    }).select().single();
+    // Use secure RPC function to start session
+    const { data, error } = await supabase.rpc('start_driving_session', {
+      p_token_code: tokenCode.toUpperCase()
+    });
 
-    if (error) {
-      toast.error('Failed to start session');
+    if (error || !data?.[0]?.success) {
+      toast.error(data?.[0]?.error_message || 'Failed to start session');
       return;
     }
 
-    await supabase.from('driving_tokens').update({ is_active: true, is_used: true }).eq('id', token.token_id);
-
-    setSessionId(data.id);
+    const result = data[0];
+    setSessionId(result.session_id);
+    setSessionSecret(result.session_secret);
     setDriving(true);
     toast.success('Drive started!');
   };
 
   const stopDrive = async () => {
-    if (!sessionId || !token) return;
+    if (!sessionId || !sessionSecret) return;
 
-    await supabase.from('driving_sessions').update({
-      status: 'completed',
-      end_time: new Date().toISOString(),
-    }).eq('id', sessionId);
+    // Use secure RPC function to stop session
+    const { data } = await supabase.rpc('stop_driving_session', {
+      p_session_id: sessionId,
+      p_session_secret: sessionSecret
+    });
 
-    await supabase.from('driving_tokens').update({ is_active: false }).eq('id', token.token_id);
-
-    setDriving(false);
-    toast.success('Drive ended!');
+    if (data) {
+      setDriving(false);
+      setSessionSecret(null);
+      toast.success('Drive ended!');
+    } else {
+      toast.error('Failed to end session');
+    }
   };
 
   useEffect(() => {
-    if (driving && sessionId && token) {
+    if (driving && sessionId && sessionSecret && token) {
       intervalRef.current = setInterval(async () => {
         setElapsed(prev => prev + 1);
-        setDistance(prev => prev + (speed[0] / 3600));
+        const newDistance = distance + (speed[0] / 3600);
+        setDistance(newDistance);
 
-        // Update session
-        await supabase.from('driving_sessions').update({
-          current_speed: speed[0],
-          current_distance_km: distance + (speed[0] / 3600),
-        }).eq('id', sessionId);
+        // Use secure RPC function to update telemetry with server-side validation
+        const { data } = await supabase.rpc('update_session_telemetry', {
+          p_session_id: sessionId,
+          p_session_secret: sessionSecret,
+          p_speed: speed[0],
+          p_distance_km: newDistance
+        });
 
-        // Check violations
-        if (speed[0] > token.speed_limit) {
-          await supabase.from('alerts').insert({
-            session_id: sessionId,
-            token_id: token.token_id,
-            message: `Speed violation: ${speed[0]} km/h (limit: ${token.speed_limit} km/h)`,
+        const result = data?.[0];
+        
+        // Check for speed violation (with rate limiting - max 1 alert per 10 seconds)
+        const now = Date.now();
+        if (result?.speed_violation && now - lastAlertRef.current.speed > 10000) {
+          await supabase.rpc('create_session_alert', {
+            p_session_id: sessionId,
+            p_session_secret: sessionSecret,
+            p_message: `Speed violation: ${speed[0]} km/h (limit: ${token.speed_limit} km/h)`
           });
-          await supabase.from('driving_sessions').update({
-            total_violations: (await supabase.from('driving_sessions').select('total_violations').eq('id', sessionId).single()).data?.total_violations + 1
-          }).eq('id', sessionId);
+          lastAlertRef.current.speed = now;
         }
 
-        if (isOutsideGeofence) {
-          await supabase.from('alerts').insert({
-            session_id: sessionId,
-            token_id: token.token_id,
-            message: `Geofence breach: Vehicle is ${distanceFromCenter.toFixed(1)} km from center`,
+        // Check for geofence breach (with rate limiting)
+        if (isOutsideGeofence && now - lastAlertRef.current.geofence > 10000) {
+          await supabase.rpc('create_session_alert', {
+            p_session_id: sessionId,
+            p_session_secret: sessionSecret,
+            p_message: `Geofence breach: Vehicle is ${distanceFromCenter.toFixed(1)} km from center`
           });
+          lastAlertRef.current.geofence = now;
         }
       }, 1000);
     }
@@ -129,7 +139,7 @@ export default function TestCar() {
     return () => {
       if (intervalRef.current) clearInterval(intervalRef.current);
     };
-  }, [driving, speed, sessionId, token, isOutsideGeofence]);
+  }, [driving, speed, sessionId, sessionSecret, token, isOutsideGeofence, distance, distanceFromCenter]);
 
   const movePosition = (dx: number, dy: number) => {
     setCarPosition(prev => ({
