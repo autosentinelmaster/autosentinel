@@ -14,8 +14,7 @@ export default {
     },
     extend: {
       fontFamily: {
-        sans: ["Exo 2", "system-ui", "sans-serif"],
-        display: ["Rajdhani", "sans-serif"],
+        sans: ["Inter", "system-ui", "sans-serif"],
       },
       colors: {
         border: "hsl(var(--border))",
@@ -96,10 +95,6 @@ export default {
           "0%, 100%": { opacity: "1" },
           "50%": { opacity: "0.7" },
         },
-        "spin-slow": {
-          from: { transform: "rotate(0deg)" },
-          to: { transform: "rotate(360deg)" },
-        },
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
@@ -107,12 +102,10 @@ export default {
         "fade-in": "fade-in 0.3s ease-out",
         "slide-in": "slide-in 0.3s ease-out",
         "pulse-slow": "pulse-slow 2s ease-in-out infinite",
-        "spin-slow": "spin-slow 3s linear infinite",
       },
       boxShadow: {
-        glow: "0 0 20px rgba(34, 211, 238, 0.3)",
-        "glow-strong": "0 0 40px rgba(34, 211, 238, 0.5)",
-        "glow-destructive": "0 0 20px rgba(239, 68, 68, 0.4)",
+        glow: "var(--shadow-glow)",
+        "glow-strong": "var(--shadow-glow-strong)",
       },
     },
   },

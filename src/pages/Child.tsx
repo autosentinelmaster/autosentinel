@@ -3,6 +3,7 @@ import { useSearchParams } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Shield, Gauge, Clock, MapPin, AlertTriangle, CheckCircle } from 'lucide-react';
+import { ThemeToggle } from '@/components/ThemeToggle';
 
 // Validated token data from secure RPC function (minimal exposure)
 interface ValidatedToken {
@@ -68,7 +69,7 @@ export default function Child() {
         <Card className="max-w-md w-full text-center">
           <CardContent className="py-12">
             <AlertTriangle className="h-12 w-12 text-destructive mx-auto mb-4" />
-            <h2 className="text-xl font-display font-bold mb-2">Token Error</h2>
+            <h2 className="text-xl font-bold mb-2">Token Error</h2>
             <p className="text-muted-foreground">{error || 'Invalid token'}</p>
           </CardContent>
         </Card>
@@ -78,11 +79,16 @@ export default function Child() {
 
   return (
     <div className="min-h-screen bg-background p-4">
+      <div className="absolute top-4 right-4">
+        <ThemeToggle />
+      </div>
+      
       <div className="max-w-md mx-auto space-y-6">
         <div className="text-center">
           <Shield className="h-10 w-10 text-primary mx-auto mb-2" />
-          <h1 className="text-2xl font-display font-bold">Welcome, {token.child_name}</h1>
+          <h1 className="text-2xl font-bold">Welcome, {token.child_name}</h1>
           <p className="text-muted-foreground">Your driving restrictions</p>
+          <p className="help-text mt-1">These limits are set by your guardian</p>
         </div>
 
         <Card className="card-glow">

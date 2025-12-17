@@ -9,14 +9,15 @@ import { Label } from '@/components/ui/label';
 import { Slider } from '@/components/ui/slider';
 import { 
   Shield, Plus, LogOut, Car, Activity, AlertTriangle, 
-  Clock, Gauge, MapPin, CheckCircle, XCircle, Bell,
-  Copy, ChevronRight
+  Clock, Gauge, MapPin, CheckCircle, Bell
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import type { Database } from '@/integrations/supabase/types';
 import { VoiceTokenCreator } from '@/components/VoiceTokenCreator';
 import { SessionSummary } from '@/components/SessionSummary';
+import { TokenShareMenu } from '@/components/TokenShareMenu';
+import { ThemeToggle } from '@/components/ThemeToggle';
 
 type DrivingToken = Database['public']['Tables']['driving_tokens']['Row'];
 type DrivingSession = Database['public']['Tables']['driving_sessions']['Row'];
@@ -214,15 +215,19 @@ export default function Dashboard() {
               <p className="text-xs text-muted-foreground">Master Control Panel</p>
             </div>
           </div>
-          <Button variant="ghost" onClick={handleLogout}>
-            <LogOut className="h-4 w-4 mr-2" />
-            Logout
-          </Button>
+          <div className="flex items-center gap-2">
+            <ThemeToggle />
+            <Button variant="ghost" onClick={handleLogout}>
+              <LogOut className="h-4 w-4 mr-2" />
+              Logout
+            </Button>
+          </div>
         </div>
       </header>
 
       <main className="container mx-auto px-4 py-6 space-y-6">
         {/* Stats Overview */}
+        <p className="help-text">Quick overview of your vehicle access management</p>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <Card className="bg-gradient-to-br from-primary/10 to-card">
             <CardContent className="p-4">
@@ -280,6 +285,7 @@ export default function Dashboard() {
               <CardTitle className="flex items-center gap-2 text-lg">
                 <Bell className="h-5 w-5 text-destructive" />
                 Recent Alerts
+                <span className="help-text font-normal ml-2">Real-time violation notifications</span>
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-2">
@@ -324,9 +330,10 @@ export default function Dashboard() {
                 />
               </DialogTitle>
               <DialogDescription>
-                Set restrictions and generate a token for vehicle access. Use voice or type manually.
+                Set driving restrictions and generate a shareable token for vehicle access.
               </DialogDescription>
             </DialogHeader>
+            <p className="help-text">Configure speed, time, distance, and geofence limits</p>
             <div className="space-y-6 py-4">
               <div className="space-y-2">
                 <Label htmlFor="childName">Driver Name</Label>
@@ -429,10 +436,13 @@ export default function Dashboard() {
 
         {/* Tokens List */}
         <div className="space-y-4">
-          <h2 className="text-xl font-display font-semibold flex items-center gap-2">
-            <Car className="h-5 w-5 text-primary" />
-            Driving Tokens
-          </h2>
+          <div className="flex items-center justify-between">
+            <h2 className="text-xl font-semibold flex items-center gap-2">
+              <Car className="h-5 w-5 text-primary" />
+              Driving Tokens
+            </h2>
+            <span className="help-text">Manage access permissions for drivers</span>
+          </div>
 
           {tokens.length === 0 ? (
             <Card className="border-dashed">
@@ -478,16 +488,13 @@ export default function Dashboard() {
                           </div>
 
                           <div className="flex items-center gap-2">
-                            <code className="bg-secondary px-3 py-1.5 rounded-lg font-display text-lg tracking-widest">
+                            <code className="bg-secondary px-3 py-1.5 rounded-lg font-mono text-lg tracking-widest">
                               {token.token_code}
                             </code>
-                            <Button 
-                              variant="ghost" 
-                              size="icon" 
-                              onClick={() => copyToken(token.token_code)}
-                            >
-                              <Copy className="h-4 w-4" />
-                            </Button>
+                            <TokenShareMenu 
+                              tokenCode={token.token_code} 
+                              childName={token.child_name}
+                            />
                           </div>
 
                           <div className="flex flex-wrap gap-3 text-sm text-muted-foreground">
@@ -526,8 +533,6 @@ export default function Dashboard() {
                             </div>
                           )}
                         </div>
-
-                        <ChevronRight className="h-5 w-5 text-muted-foreground" />
                       </div>
                     </CardContent>
                   </Card>

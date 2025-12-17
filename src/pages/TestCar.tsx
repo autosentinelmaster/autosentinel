@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Slider } from '@/components/ui/slider';
 import { Car, Gauge, Clock, MapPin, AlertTriangle, Play, Square, Key } from 'lucide-react';
 import { toast } from 'sonner';
+import { ThemeToggle } from '@/components/ThemeToggle';
 
 // Validated token data from RPC function (minimal exposure)
 interface ValidatedToken {
@@ -151,10 +152,14 @@ export default function TestCar() {
   if (!token) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center p-4">
+        <div className="absolute top-4 right-4">
+          <ThemeToggle />
+        </div>
         <Card className="max-w-md w-full card-glow">
           <CardHeader className="text-center">
             <Car className="h-12 w-12 text-primary mx-auto mb-2" />
-            <CardTitle className="font-display">Test Car Simulator</CardTitle>
+            <CardTitle>Test Car Simulator</CardTitle>
+            <p className="help-text mt-2">Virtual driving environment for testing tokens</p>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="space-y-2">
@@ -164,6 +169,7 @@ export default function TestCar() {
                 onChange={(e) => setTokenCode(e.target.value.toUpperCase())}
                 className="token-input"
               />
+              <p className="help-text">Enter the token code shared by your guardian</p>
             </div>
             <Button onClick={verifyToken} className="w-full" size="lg">
               <Key className="h-5 w-5 mr-2" /> Unlock Car
@@ -176,11 +182,17 @@ export default function TestCar() {
 
   return (
     <div className="min-h-screen bg-background p-4">
+      <div className="absolute top-4 right-4">
+        <ThemeToggle />
+      </div>
       <div className="max-w-2xl mx-auto space-y-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Car className="h-8 w-8 text-primary" />
-            <h1 className="text-xl font-display font-bold">Test Car Simulator</h1>
+            <div>
+              <h1 className="text-xl font-bold">Test Car Simulator</h1>
+              <p className="help-text">Simulated vehicle control panel</p>
+            </div>
           </div>
           {driving ? (
             <Button variant="destructive" onClick={stopDrive}><Square className="h-4 w-4 mr-2" /> Stop</Button>
@@ -192,6 +204,7 @@ export default function TestCar() {
         {/* Geofence Map */}
         <Card>
           <CardContent className="p-4">
+            <p className="help-text mb-2">Geofence boundary - stay inside the dashed circle</p>
             <div className="relative w-full aspect-square bg-secondary/30 rounded-xl overflow-hidden">
               {/* Geofence circle */}
               <div className="absolute inset-4 rounded-full border-2 border-dashed border-primary/50 geofence-pulse" />
