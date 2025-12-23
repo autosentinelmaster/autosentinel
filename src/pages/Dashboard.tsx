@@ -7,9 +7,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Slider } from '@/components/ui/slider';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { 
   Shield, Plus, LogOut, Car, Activity, AlertTriangle, 
-  Clock, Gauge, MapPin, CheckCircle, Bell
+  Clock, Gauge, MapPin, CheckCircle, Bell, Fuel, Undo2
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
@@ -18,10 +19,31 @@ import { VoiceTokenCreator } from '@/components/VoiceTokenCreator';
 import { SessionSummary } from '@/components/SessionSummary';
 import { TokenShareMenu } from '@/components/TokenShareMenu';
 import { ThemeToggle } from '@/components/ThemeToggle';
+import { CarManager } from '@/components/CarManager';
+import { MessageCenter } from '@/components/MessageCenter';
+import { SOSAlert } from '@/components/SOSAlert';
+import { DemoInstructions } from '@/components/DemoInstructions';
 
 type DrivingToken = Database['public']['Tables']['driving_tokens']['Row'];
 type DrivingSession = Database['public']['Tables']['driving_sessions']['Row'];
 type Alert = Database['public']['Tables']['alerts']['Row'];
+
+interface CarData {
+  id: string;
+  name: string;
+  make: string | null;
+  model: string | null;
+}
+
+interface Message {
+  id: string;
+  token_id: string;
+  sender_type: string;
+  message: string;
+  is_sos: boolean;
+  is_read: boolean;
+  created_at: string;
+}
 
 export default function Dashboard() {
   const { user, signOut } = useAuth();
@@ -29,16 +51,25 @@ export default function Dashboard() {
   const [tokens, setTokens] = useState<DrivingToken[]>([]);
   const [sessions, setSessions] = useState<DrivingSession[]>([]);
   const [alerts, setAlerts] = useState<Alert[]>([]);
+  const [cars, setCars] = useState<CarData[]>([]);
   const [loading, setLoading] = useState(true);
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   
+  // SOS Alert state
+  const [sosAlert, setSosAlert] = useState<{ open: boolean; guestName: string; message: string; carName?: string }>({
+    open: false, guestName: '', message: ''
+  });
+  
   // New token form state
-  const [childName, setChildName] = useState('');
-  const [childPhone, setChildPhone] = useState('');
+  const [guestName, setGuestName] = useState('');
+  const [guestPhone, setGuestPhone] = useState('');
+  const [selectedCarId, setSelectedCarId] = useState<string>('');
   const [speedLimit, setSpeedLimit] = useState([60]);
   const [timeLimit, setTimeLimit] = useState([30]);
   const [distanceLimit, setDistanceLimit] = useState([10]);
   const [geofenceRadius, setGeofenceRadius] = useState([5]);
+  const [validityHours, setValidityHours] = useState([24]);
+  const [fuelLimit, setFuelLimit] = useState([80]);
 
   useEffect(() => {
     if (!user) {
@@ -46,13 +77,22 @@ export default function Dashboard() {
       return;
     }
     fetchData();
-    setupRealtimeSubscriptions();
+    const cleanup = setupRealtimeSubscriptions();
+    return cleanup;
   }, [user, navigate]);
 
   const fetchData = async () => {
     if (!user) return;
     
     try {
+      // Fetch cars
+      const { data: carsData } = await supabase
+        .from('cars')
+        .select('id, name, make, model')
+        .eq('owner_id', user.id);
+      
+      setCars(carsData || []);
+
       // Fetch tokens
       const { data: tokensData } = await supabase
         .from('driving_tokens')
@@ -84,7 +124,7 @@ export default function Dashboard() {
         setAlerts(alertsData || []);
       }
     } catch (error) {
-      console.error('Error fetching data:', error);
+      if (import.meta.env.DEV) console.error('Error fetching data:', error);
     } finally {
       setLoading(false);
     }
@@ -127,32 +167,35 @@ export default function Dashboard() {
   };
 
   const handleCreateToken = async () => {
-    if (!user || !childName.trim()) {
-      toast.error('Please enter child name');
+    if (!user || !guestName.trim()) {
+      toast.error('Please enter guest name');
       return;
     }
 
     const tokenCode = generateTokenCode();
     const expiresAt = new Date();
-    expiresAt.setMinutes(expiresAt.getMinutes() + timeLimit[0] + 60); // Token valid for time limit + 1 hour buffer
+    expiresAt.setHours(expiresAt.getHours() + validityHours[0]);
 
     const { data, error } = await supabase.from('driving_tokens').insert({
       master_user_id: user.id,
       token_code: tokenCode,
-      child_name: childName,
-      child_phone: childPhone,
+      guest_name: guestName,
+      guest_phone: guestPhone || null,
+      car_id: selectedCarId || null,
       speed_limit: speedLimit[0],
       time_limit_minutes: timeLimit[0],
       distance_limit_km: distanceLimit[0],
       geofence_radius_km: geofenceRadius[0],
       geofence_center_lat: 18.5204,
       geofence_center_lng: 73.8567,
+      validity_hours: validityHours[0],
+      fuel_limit_percent: fuelLimit[0],
       expires_at: expiresAt.toISOString()
     }).select().single();
 
     if (error) {
       toast.error('Failed to create token');
-      console.error(error);
+      if (import.meta.env.DEV) console.error(error);
     } else {
       toast.success('Token created successfully!');
       setTokens(prev => [data, ...prev]);
@@ -162,17 +205,15 @@ export default function Dashboard() {
   };
 
   const resetForm = () => {
-    setChildName('');
-    setChildPhone('');
+    setGuestName('');
+    setGuestPhone('');
+    setSelectedCarId('');
     setSpeedLimit([60]);
     setTimeLimit([30]);
     setDistanceLimit([10]);
     setGeofenceRadius([5]);
-  };
-
-  const copyToken = (code: string) => {
-    navigator.clipboard.writeText(code);
-    toast.success('Token copied to clipboard!');
+    setValidityHours([24]);
+    setFuelLimit([80]);
   };
 
   const handleLogout = async () => {
@@ -183,10 +224,29 @@ export default function Dashboard() {
   const getTokenStatus = (token: DrivingToken) => {
     const now = new Date();
     const expiresAt = new Date(token.expires_at);
+    if (token.is_returned) return 'returned';
     if (expiresAt < now) return 'expired';
     if (token.is_active) return 'active';
     if (token.is_used) return 'used';
     return 'pending';
+  };
+
+  const getCarName = (carId: string | null) => {
+    if (!carId) return null;
+    const car = cars.find(c => c.id === carId);
+    return car ? car.name : null;
+  };
+
+  const handleSOSReceived = (tokenId: string, message: Message) => {
+    const token = tokens.find(t => t.id === tokenId);
+    if (token) {
+      setSosAlert({
+        open: true,
+        guestName: token.guest_name,
+        message: message.message,
+        carName: getCarName(token.car_id) || undefined
+      });
+    }
   };
 
   const activeSessionsCount = sessions.filter(s => s.status === 'active').length;
@@ -205,6 +265,15 @@ export default function Dashboard() {
 
   return (
     <div className="min-h-screen bg-background">
+      {/* SOS Alert Modal */}
+      <SOSAlert 
+        open={sosAlert.open}
+        onClose={() => setSosAlert(prev => ({ ...prev, open: false }))}
+        guestName={sosAlert.guestName}
+        message={sosAlert.message}
+        carName={sosAlert.carName}
+      />
+
       {/* Header */}
       <header className="border-b border-border bg-card/50 backdrop-blur-sm sticky top-0 z-50">
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
@@ -212,10 +281,11 @@ export default function Dashboard() {
             <Shield className="h-8 w-8 text-primary" />
             <div>
               <h1 className="text-xl font-display font-bold">Auto Sentinel</h1>
-              <p className="text-xs text-muted-foreground">Master Control Panel</p>
+              <p className="text-xs text-muted-foreground">Owner Control Panel</p>
             </div>
           </div>
           <div className="flex items-center gap-2">
+            <DemoInstructions variant="owner" />
             <ThemeToggle />
             <Button variant="ghost" onClick={handleLogout}>
               <LogOut className="h-4 w-4 mr-2" />
@@ -257,8 +327,8 @@ export default function Dashboard() {
             <CardContent className="p-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-muted-foreground">Total Sessions</p>
-                  <p className="text-3xl font-display font-bold">{sessions.length}</p>
+                  <p className="text-sm text-muted-foreground">My Vehicles</p>
+                  <p className="text-3xl font-display font-bold">{cars.length}</p>
                 </div>
                 <Clock className="h-10 w-10 text-warning opacity-50" />
               </div>
@@ -277,6 +347,9 @@ export default function Dashboard() {
             </CardContent>
           </Card>
         </div>
+
+        {/* Car Manager */}
+        <CarManager onCarsChange={(newCars) => setCars(newCars)} />
 
         {/* Alerts Section */}
         {alerts.length > 0 && (
@@ -315,13 +388,13 @@ export default function Dashboard() {
               Create New Driving Token
             </Button>
           </DialogTrigger>
-          <DialogContent className="sm:max-w-md">
+          <DialogContent className="sm:max-w-md max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle className="font-display flex items-center justify-between">
                 Create Driving Permission
                 <VoiceTokenCreator 
                   onTokenParsed={(params) => {
-                    if (params.childName) setChildName(params.childName);
+                    if (params.childName) setGuestName(params.childName);
                     if (params.speedLimit) setSpeedLimit([params.speedLimit]);
                     if (params.timeLimit) setTimeLimit([params.timeLimit]);
                     if (params.distanceLimit) setDistanceLimit([params.distanceLimit]);
@@ -333,26 +406,64 @@ export default function Dashboard() {
                 Set driving restrictions and generate a shareable token for vehicle access.
               </DialogDescription>
             </DialogHeader>
-            <p className="help-text">Configure speed, time, distance, and geofence limits</p>
-            <div className="space-y-6 py-4">
+            <p className="help-text">Configure vehicle, limits, and token validity</p>
+            <div className="space-y-5 py-4">
               <div className="space-y-2">
-                <Label htmlFor="childName">Driver Name</Label>
+                <Label htmlFor="guestName">Guest Name *</Label>
                 <Input
-                  id="childName"
-                  placeholder="Enter driver name"
-                  value={childName}
-                  onChange={(e) => setChildName(e.target.value)}
+                  id="guestName"
+                  placeholder="Enter guest name"
+                  value={guestName}
+                  onChange={(e) => setGuestName(e.target.value)}
                 />
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="childPhone">Phone Number (Optional)</Label>
+                <Label htmlFor="guestPhone">Guest Phone (Optional)</Label>
                 <Input
-                  id="childPhone"
+                  id="guestPhone"
                   placeholder="+91 9876543210"
-                  value={childPhone}
-                  onChange={(e) => setChildPhone(e.target.value)}
+                  value={guestPhone}
+                  onChange={(e) => setGuestPhone(e.target.value)}
                 />
+              </div>
+
+              <div className="space-y-2">
+                <Label>Assign Vehicle</Label>
+                <Select value={selectedCarId} onValueChange={setSelectedCarId}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select a vehicle (optional)" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {cars.map(car => (
+                      <SelectItem key={car.id} value={car.id}>
+                        {car.name} {car.make && car.model ? `(${car.make} ${car.model})` : ''}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {cars.length === 0 && (
+                  <p className="text-xs text-muted-foreground">Add vehicles in "My Vehicles" section first</p>
+                )}
+              </div>
+
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <Label className="flex items-center gap-2">
+                    <Clock className="h-4 w-4 text-primary" />
+                    Token Validity
+                  </Label>
+                  <span className="text-sm font-semibold text-primary">{validityHours[0]} hours</span>
+                </div>
+                <Slider
+                  value={validityHours}
+                  onValueChange={setValidityHours}
+                  min={1}
+                  max={72}
+                  step={1}
+                  className="w-full"
+                />
+                <p className="text-xs text-muted-foreground">How long the token can be used (not driving time)</p>
               </div>
 
               <div className="space-y-3">
@@ -377,7 +488,7 @@ export default function Dashboard() {
                 <div className="flex items-center justify-between">
                   <Label className="flex items-center gap-2">
                     <Clock className="h-4 w-4 text-primary" />
-                    Time Limit
+                    Driving Time Limit
                   </Label>
                   <span className="text-sm font-semibold text-primary">{timeLimit[0]} mins</span>
                 </div>
@@ -405,6 +516,24 @@ export default function Dashboard() {
                   min={1}
                   max={50}
                   step={1}
+                  className="w-full"
+                />
+              </div>
+
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <Label className="flex items-center gap-2">
+                    <Fuel className="h-4 w-4 text-primary" />
+                    Fuel Usage Limit
+                  </Label>
+                  <span className="text-sm font-semibold text-primary">{fuelLimit[0]}%</span>
+                </div>
+                <Slider
+                  value={fuelLimit}
+                  onValueChange={setFuelLimit}
+                  min={10}
+                  max={100}
+                  step={5}
                   className="w-full"
                 />
               </div>
@@ -441,7 +570,7 @@ export default function Dashboard() {
               <Car className="h-5 w-5 text-primary" />
               Driving Tokens
             </h2>
-            <span className="help-text">Manage access permissions for drivers</span>
+            <span className="help-text">Manage access permissions for guests</span>
           </div>
 
           {tokens.length === 0 ? (
@@ -457,14 +586,20 @@ export default function Dashboard() {
               {tokens.map((token) => {
                 const status = getTokenStatus(token);
                 const session = sessions.find(s => s.token_id === token.id);
+                const carName = getCarName(token.car_id);
                 
                 return (
                   <Card key={token.id} className={`transition-all ${status === 'active' ? 'card-glow border-primary/50' : ''}`}>
                     <CardContent className="p-4">
                       <div className="flex items-start justify-between gap-4">
                         <div className="flex-1 space-y-2">
-                          <div className="flex items-center gap-2">
-                            <span className="font-display font-semibold text-lg">{token.child_name}</span>
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="font-display font-semibold text-lg">{token.guest_name}</span>
+                            {carName && (
+                              <span className="px-2 py-0.5 rounded-full bg-primary/10 text-primary text-xs font-medium flex items-center gap-1">
+                                <Car className="h-3 w-3" /> {carName}
+                              </span>
+                            )}
                             {status === 'active' && (
                               <span className="px-2 py-0.5 rounded-full bg-success/20 text-success text-xs font-medium flex items-center gap-1">
                                 <Activity className="h-3 w-3" /> Active
@@ -485,6 +620,11 @@ export default function Dashboard() {
                                 <CheckCircle className="h-3 w-3" /> Completed
                               </span>
                             )}
+                            {status === 'returned' && (
+                              <span className="px-2 py-0.5 rounded-full bg-primary/20 text-primary text-xs font-medium flex items-center gap-1">
+                                <Undo2 className="h-3 w-3" /> Returned
+                              </span>
+                            )}
                           </div>
 
                           <div className="flex items-center gap-2">
@@ -493,7 +633,12 @@ export default function Dashboard() {
                             </code>
                             <TokenShareMenu 
                               tokenCode={token.token_code} 
-                              childName={token.child_name}
+                              childName={token.guest_name}
+                            />
+                            <MessageCenter 
+                              tokenId={token.id} 
+                              guestName={token.guest_name}
+                              onSOSReceived={(msg) => handleSOSReceived(token.id, msg)}
                             />
                           </div>
 
@@ -507,13 +652,16 @@ export default function Dashboard() {
                             <span className="flex items-center gap-1">
                               <MapPin className="h-4 w-4" /> {Number(token.distance_limit_km)} km
                             </span>
+                            <span className="flex items-center gap-1">
+                              <Fuel className="h-4 w-4" /> {token.fuel_limit_percent}%
+                            </span>
                           </div>
 
                           {session && (
                             <div className="mt-3 p-3 bg-secondary/50 rounded-lg">
-                              <div className="grid grid-cols-3 gap-4 text-sm">
+                              <div className="grid grid-cols-4 gap-4 text-sm">
                                 <div>
-                                  <p className="text-muted-foreground">Current Speed</p>
+                                  <p className="text-muted-foreground">Speed</p>
                                   <p className={`font-semibold ${session.current_speed > token.speed_limit ? 'text-destructive' : 'text-foreground'}`}>
                                     {session.current_speed} km/h
                                   </p>
@@ -523,12 +671,24 @@ export default function Dashboard() {
                                   <p className="font-semibold">{Number(session.current_distance_km).toFixed(1)} km</p>
                                 </div>
                                 <div>
+                                  <p className="text-muted-foreground">Fuel</p>
+                                  <p className={`font-semibold ${session.current_fuel_percent < 20 ? 'text-warning' : ''}`}>
+                                    {session.current_fuel_percent}%
+                                  </p>
+                                </div>
+                                <div>
                                   <p className="text-muted-foreground">Violations</p>
                                   <p className={`font-semibold ${session.total_violations > 0 ? 'text-destructive' : 'text-success'}`}>
                                     {session.total_violations}
                                   </p>
                                 </div>
                               </div>
+                              {session.sudden_stops_count > 0 && (
+                                <div className="mt-2 p-2 bg-warning/20 rounded text-warning text-sm flex items-center gap-2">
+                                  <AlertTriangle className="h-4 w-4" />
+                                  {session.sudden_stops_count} sudden stop(s) detected (potential accidents)
+                                </div>
+                              )}
                               <SessionSummary session={session} token={token} />
                             </div>
                           )}

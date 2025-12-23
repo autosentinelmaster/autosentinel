@@ -1,11 +1,13 @@
 import { useEffect, useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useSearchParams, useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Shield, Gauge, Clock, MapPin, AlertTriangle, CheckCircle } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Shield, Gauge, Clock, MapPin, AlertTriangle, CheckCircle, Car, Fuel, ArrowRight } from 'lucide-react';
 import { ThemeToggle } from '@/components/ThemeToggle';
+import { DemoInstructions } from '@/components/DemoInstructions';
 
-// Validated token data from secure RPC function (minimal exposure)
+// Validated token data from secure RPC function
 interface ValidatedToken {
   token_id: string;
   is_valid: boolean;
@@ -15,11 +17,14 @@ interface ValidatedToken {
   geofence_center_lat: number;
   geofence_center_lng: number;
   geofence_radius_km: number;
-  child_name: string;
+  guest_name: string;
+  car_name: string;
+  fuel_limit_percent: number;
 }
 
 export default function Child() {
   const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
   const tokenCode = searchParams.get('token');
   const [token, setToken] = useState<ValidatedToken | null>(null);
   const [loading, setLoading] = useState(true);
@@ -35,7 +40,6 @@ export default function Child() {
   }, [tokenCode]);
 
   const fetchToken = async () => {
-    // Use secure RPC function instead of direct table query
     const { data, error: rpcError } = await supabase.rpc('validate_driving_token', {
       p_token_code: tokenCode?.toUpperCase() || ''
     });
@@ -53,6 +57,10 @@ export default function Child() {
       setToken(result as ValidatedToken);
     }
     setLoading(false);
+  };
+
+  const goToSimulator = () => {
+    navigate('/test-car');
   };
 
   if (loading) {
@@ -79,17 +87,32 @@ export default function Child() {
 
   return (
     <div className="min-h-screen bg-background p-4">
-      <div className="absolute top-4 right-4">
+      <div className="absolute top-4 right-4 flex items-center gap-2">
+        <DemoInstructions variant="guest" />
         <ThemeToggle />
       </div>
       
       <div className="max-w-md mx-auto space-y-6">
         <div className="text-center">
           <Shield className="h-10 w-10 text-primary mx-auto mb-2" />
-          <h1 className="text-2xl font-bold">Welcome, {token.child_name}</h1>
-          <p className="text-muted-foreground">Your driving restrictions</p>
-          <p className="help-text mt-1">These limits are set by your guardian</p>
+          <h1 className="text-2xl font-bold">Welcome, {token.guest_name}</h1>
+          <p className="text-muted-foreground">Your driving permissions</p>
+          <p className="help-text mt-1">These limits are set by the vehicle owner</p>
         </div>
+
+        {token.car_name !== 'Unassigned' && (
+          <Card className="bg-primary/5 border-primary/20">
+            <CardContent className="p-4 flex items-center gap-3">
+              <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center">
+                <Car className="h-6 w-6 text-primary" />
+              </div>
+              <div>
+                <p className="font-semibold">{token.car_name}</p>
+                <p className="text-sm text-muted-foreground">Assigned Vehicle</p>
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         <Card className="card-glow">
           <CardHeader>
@@ -111,14 +134,28 @@ export default function Child() {
               <span className="flex items-center gap-2"><MapPin className="h-5 w-5 text-primary" /> Distance Limit</span>
               <span className="font-bold">{Number(token.distance_limit_km)} km</span>
             </div>
+            <div className="flex items-center justify-between p-3 bg-secondary/50 rounded-lg">
+              <span className="flex items-center gap-2"><Fuel className="h-5 w-5 text-primary" /> Fuel Limit</span>
+              <span className="font-bold">{token.fuel_limit_percent}%</span>
+            </div>
           </CardContent>
         </Card>
 
         <Card className="bg-secondary/30">
-          <CardContent className="p-4 text-center text-sm text-muted-foreground">
-            <p>Use your token in the Test Car Simulator to begin driving</p>
+          <CardContent className="p-4 space-y-4">
+            <p className="text-center text-sm text-muted-foreground">
+              Ready to drive? Go to the Car Simulator to start your session.
+            </p>
+            <Button onClick={goToSimulator} className="w-full" size="lg">
+              Go to Car Simulator
+              <ArrowRight className="h-4 w-4 ml-2" />
+            </Button>
           </CardContent>
         </Card>
+
+        <div className="text-center text-sm text-muted-foreground">
+          <p>Use token code: <code className="bg-secondary px-2 py-1 rounded">{tokenCode}</code></p>
+        </div>
       </div>
     </div>
   );
