@@ -56,19 +56,55 @@ export type Database = {
           },
         ]
       }
+      cars: {
+        Row: {
+          created_at: string
+          fuel_capacity_liters: number
+          id: string
+          license_plate: string | null
+          make: string | null
+          model: string | null
+          name: string
+          owner_id: string
+        }
+        Insert: {
+          created_at?: string
+          fuel_capacity_liters?: number
+          id?: string
+          license_plate?: string | null
+          make?: string | null
+          model?: string | null
+          name: string
+          owner_id: string
+        }
+        Update: {
+          created_at?: string
+          fuel_capacity_liters?: number
+          id?: string
+          license_plate?: string | null
+          make?: string | null
+          model?: string | null
+          name?: string
+          owner_id?: string
+        }
+        Relationships: []
+      }
       driving_sessions: {
         Row: {
           created_at: string
           current_distance_km: number
+          current_fuel_percent: number
           current_lat: number | null
           current_lng: number | null
           current_speed: number
           end_time: string | null
           id: string
           max_speed_reached: number
+          seat_belt_confirmed: boolean
           session_secret: string | null
           start_time: string | null
           status: Database["public"]["Enums"]["session_status"]
+          sudden_stops_count: number
           token_id: string
           total_violations: number
           updated_at: string
@@ -76,15 +112,18 @@ export type Database = {
         Insert: {
           created_at?: string
           current_distance_km?: number
+          current_fuel_percent?: number
           current_lat?: number | null
           current_lng?: number | null
           current_speed?: number
           end_time?: string | null
           id?: string
           max_speed_reached?: number
+          seat_belt_confirmed?: boolean
           session_secret?: string | null
           start_time?: string | null
           status?: Database["public"]["Enums"]["session_status"]
+          sudden_stops_count?: number
           token_id: string
           total_violations?: number
           updated_at?: string
@@ -92,15 +131,18 @@ export type Database = {
         Update: {
           created_at?: string
           current_distance_km?: number
+          current_fuel_percent?: number
           current_lat?: number | null
           current_lng?: number | null
           current_speed?: number
           end_time?: string | null
           id?: string
           max_speed_reached?: number
+          seat_belt_confirmed?: boolean
           session_secret?: string | null
           start_time?: string | null
           status?: Database["public"]["Enums"]["session_status"]
+          sudden_stops_count?: number
           token_id?: string
           total_violations?: number
           updated_at?: string
@@ -117,57 +159,118 @@ export type Database = {
       }
       driving_tokens: {
         Row: {
-          child_name: string
-          child_phone: string | null
+          car_id: string | null
           created_at: string
           distance_limit_km: number
           expires_at: string
+          fuel_limit_percent: number
           geofence_center_lat: number
           geofence_center_lng: number
           geofence_radius_km: number
+          guest_name: string
+          guest_phone: string | null
           id: string
           is_active: boolean
+          is_returned: boolean
           is_used: boolean
           master_user_id: string
+          returned_at: string | null
           speed_limit: number
           time_limit_minutes: number
           token_code: string
+          validity_hours: number
         }
         Insert: {
-          child_name: string
-          child_phone?: string | null
+          car_id?: string | null
           created_at?: string
           distance_limit_km?: number
           expires_at: string
+          fuel_limit_percent?: number
           geofence_center_lat?: number
           geofence_center_lng?: number
           geofence_radius_km?: number
+          guest_name: string
+          guest_phone?: string | null
           id?: string
           is_active?: boolean
+          is_returned?: boolean
           is_used?: boolean
           master_user_id: string
+          returned_at?: string | null
           speed_limit?: number
           time_limit_minutes?: number
           token_code: string
+          validity_hours?: number
         }
         Update: {
-          child_name?: string
-          child_phone?: string | null
+          car_id?: string | null
           created_at?: string
           distance_limit_km?: number
           expires_at?: string
+          fuel_limit_percent?: number
           geofence_center_lat?: number
           geofence_center_lng?: number
           geofence_radius_km?: number
+          guest_name?: string
+          guest_phone?: string | null
           id?: string
           is_active?: boolean
+          is_returned?: boolean
           is_used?: boolean
           master_user_id?: string
+          returned_at?: string | null
           speed_limit?: number
           time_limit_minutes?: number
           token_code?: string
+          validity_hours?: number
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "driving_tokens_car_id_fkey"
+            columns: ["car_id"]
+            isOneToOne: false
+            referencedRelation: "cars"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      messages: {
+        Row: {
+          created_at: string
+          id: string
+          is_read: boolean
+          is_sos: boolean
+          message: string
+          sender_type: string
+          token_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_read?: boolean
+          is_sos?: boolean
+          message: string
+          sender_type: string
+          token_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_read?: boolean
+          is_sos?: boolean
+          message?: string
+          sender_type?: string
+          token_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "messages_token_id_fkey"
+            columns: ["token_id"]
+            isOneToOne: false
+            referencedRelation: "driving_tokens"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       profiles: {
         Row: {
@@ -248,6 +351,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      confirm_seat_belt: {
+        Args: { p_session_id: string; p_session_secret: string }
+        Returns: boolean
+      }
       create_session_alert: {
         Args: {
           p_message: string
@@ -257,6 +364,26 @@ export type Database = {
         Returns: boolean
       }
       generate_token_code: { Args: never; Returns: string }
+      return_token: {
+        Args: { p_session_secret: string; p_token_code: string }
+        Returns: boolean
+      }
+      send_guest_message: {
+        Args: {
+          p_message: string
+          p_session_secret: string
+          p_token_code: string
+        }
+        Returns: boolean
+      }
+      send_sos: {
+        Args: {
+          p_message?: string
+          p_session_secret: string
+          p_token_code: string
+        }
+        Returns: boolean
+      }
       session_has_token: {
         Args: { p_session_id: string; p_token_id: string }
         Returns: boolean
@@ -274,28 +401,46 @@ export type Database = {
         Args: { p_session_id: string; p_session_secret: string }
         Returns: boolean
       }
-      update_session_telemetry: {
-        Args: {
-          p_distance_km: number
-          p_session_id: string
-          p_session_secret: string
-          p_speed: number
-        }
-        Returns: {
-          current_speed_limit: number
-          speed_violation: boolean
-          success: boolean
-        }[]
-      }
+      update_session_telemetry:
+        | {
+            Args: {
+              p_distance_km: number
+              p_session_id: string
+              p_session_secret: string
+              p_speed: number
+            }
+            Returns: {
+              current_speed_limit: number
+              speed_violation: boolean
+              success: boolean
+            }[]
+          }
+        | {
+            Args: {
+              p_distance_km: number
+              p_fuel_percent?: number
+              p_session_id: string
+              p_session_secret: string
+              p_speed: number
+              p_sudden_stop?: boolean
+            }
+            Returns: {
+              current_speed_limit: number
+              speed_violation: boolean
+              success: boolean
+            }[]
+          }
       user_owns_token: { Args: { p_token_id: string }; Returns: boolean }
       validate_driving_token: {
         Args: { p_token_code: string }
         Returns: {
-          child_name: string
+          car_name: string
           distance_limit_km: number
+          fuel_limit_percent: number
           geofence_center_lat: number
           geofence_center_lng: number
           geofence_radius_km: number
+          guest_name: string
           is_valid: boolean
           speed_limit: number
           time_limit_minutes: number
@@ -306,7 +451,7 @@ export type Database = {
     Enums: {
       session_status: "pending" | "active" | "completed" | "violated"
       user_role: "master" | "child"
-      violation_type: "speed" | "geofence" | "time"
+      violation_type: "speed" | "geofence" | "time" | "sudden_stop" | "fuel"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -436,7 +581,7 @@ export const Constants = {
     Enums: {
       session_status: ["pending", "active", "completed", "violated"],
       user_role: ["master", "child"],
-      violation_type: ["speed", "geofence", "time"],
+      violation_type: ["speed", "geofence", "time", "sudden_stop", "fuel"],
     },
   },
 } as const

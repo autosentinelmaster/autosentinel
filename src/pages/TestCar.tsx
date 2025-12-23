@@ -4,11 +4,14 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Slider } from '@/components/ui/slider';
-import { Car, Gauge, Clock, MapPin, AlertTriangle, Play, Square, Key } from 'lucide-react';
+import { Car, Gauge, Clock, MapPin, AlertTriangle, Play, Square, Key, Fuel, OctagonX } from 'lucide-react';
 import { toast } from 'sonner';
 import { ThemeToggle } from '@/components/ThemeToggle';
+import { SeatBeltDialog } from '@/components/SeatBeltDialog';
+import { GuestActions } from '@/components/GuestActions';
+import { DemoInstructions } from '@/components/DemoInstructions';
 
-// Validated token data from RPC function (minimal exposure)
+// Validated token data from RPC function
 interface ValidatedToken {
   token_id: string;
   is_valid: boolean;
@@ -18,7 +21,9 @@ interface ValidatedToken {
   geofence_center_lat: number;
   geofence_center_lng: number;
   geofence_radius_km: number;
-  child_name: string;
+  guest_name: string;
+  car_name: string;
+  fuel_limit_percent: number;
 }
 
 export default function TestCar() {
@@ -30,16 +35,19 @@ export default function TestCar() {
   const [speed, setSpeed] = useState([0]);
   const [distance, setDistance] = useState(0);
   const [elapsed, setElapsed] = useState(0);
+  const [fuel, setFuel] = useState(100);
   const [carPosition, setCarPosition] = useState({ x: 50, y: 50 });
+  const [showSeatBeltDialog, setShowSeatBeltDialog] = useState(false);
+  const [seatBeltConfirmed, setSeatBeltConfirmed] = useState(false);
+  const [tokenReturned, setTokenReturned] = useState(false);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
-  const lastAlertRef = useRef<{ speed: number; geofence: number }>({ speed: 0, geofence: 0 });
+  const lastAlertRef = useRef<{ speed: number; geofence: number; fuel: number }>({ speed: 0, geofence: 0, fuel: 0 });
 
   const geofenceRadius = token ? Number(token.geofence_radius_km) : 5;
   const distanceFromCenter = Math.sqrt(Math.pow(carPosition.x - 50, 2) + Math.pow(carPosition.y - 50, 2)) / 40 * geofenceRadius;
   const isOutsideGeofence = distanceFromCenter > geofenceRadius;
 
   const verifyToken = async () => {
-    // Use secure RPC function instead of direct table query
     const { data, error } = await supabase.rpc('validate_driving_token', {
       p_token_code: tokenCode.toUpperCase()
     });
@@ -59,10 +67,16 @@ export default function TestCar() {
     toast.success('Token verified! Ready to drive.');
   };
 
-  const startDrive = async () => {
+  const initiateStartDrive = () => {
+    setShowSeatBeltDialog(true);
+  };
+
+  const confirmSeatBeltAndStart = async () => {
+    setSeatBeltConfirmed(true);
+    setShowSeatBeltDialog(false);
+    
     if (!token) return;
 
-    // Use secure RPC function to start session
     const { data, error } = await supabase.rpc('start_driving_session', {
       p_token_code: tokenCode.toUpperCase()
     });
@@ -75,14 +89,20 @@ export default function TestCar() {
     const result = data[0];
     setSessionId(result.session_id);
     setSessionSecret(result.session_secret);
+    
+    // Confirm seat belt in database
+    await supabase.rpc('confirm_seat_belt', {
+      p_session_id: result.session_id,
+      p_session_secret: result.session_secret
+    });
+    
     setDriving(true);
-    toast.success('Drive started!');
+    toast.success('Drive started! Stay safe.');
   };
 
   const stopDrive = async () => {
     if (!sessionId || !sessionSecret) return;
 
-    // Use secure RPC function to stop session
     const { data } = await supabase.rpc('stop_driving_session', {
       p_session_id: sessionId,
       p_session_secret: sessionSecret
@@ -97,25 +117,54 @@ export default function TestCar() {
     }
   };
 
+  const simulateSuddenStop = async () => {
+    if (!sessionId || !sessionSecret) return;
+    
+    toast.warning('SUDDEN STOP DETECTED!');
+    
+    await supabase.rpc('update_session_telemetry', {
+      p_session_id: sessionId,
+      p_session_secret: sessionSecret,
+      p_speed: 0,
+      p_distance_km: distance,
+      p_fuel_percent: fuel,
+      p_sudden_stop: true
+    });
+
+    await supabase.rpc('create_session_alert', {
+      p_session_id: sessionId,
+      p_session_secret: sessionSecret,
+      p_message: `⚠️ SUDDEN STOP detected at ${speed[0]} km/h - Possible accident!`
+    });
+
+    setSpeed([0]);
+  };
+
   useEffect(() => {
     if (driving && sessionId && sessionSecret && token) {
       intervalRef.current = setInterval(async () => {
         setElapsed(prev => prev + 1);
         const newDistance = distance + (speed[0] / 3600);
         setDistance(newDistance);
+        
+        // Simulate fuel consumption based on speed
+        const fuelConsumption = 0.005 + (speed[0] / 10000);
+        const newFuel = Math.max(0, fuel - fuelConsumption);
+        setFuel(newFuel);
 
-        // Use secure RPC function to update telemetry with server-side validation
         const { data } = await supabase.rpc('update_session_telemetry', {
           p_session_id: sessionId,
           p_session_secret: sessionSecret,
           p_speed: speed[0],
-          p_distance_km: newDistance
+          p_distance_km: newDistance,
+          p_fuel_percent: Math.round(newFuel),
+          p_sudden_stop: false
         });
 
         const result = data?.[0];
-        
-        // Check for speed violation (with rate limiting - max 1 alert per 10 seconds)
         const now = Date.now();
+        
+        // Speed violation alert
         if (result?.speed_violation && now - lastAlertRef.current.speed > 10000) {
           await supabase.rpc('create_session_alert', {
             p_session_id: sessionId,
@@ -125,7 +174,7 @@ export default function TestCar() {
           lastAlertRef.current.speed = now;
         }
 
-        // Check for geofence breach (with rate limiting)
+        // Geofence breach alert
         if (isOutsideGeofence && now - lastAlertRef.current.geofence > 10000) {
           await supabase.rpc('create_session_alert', {
             p_session_id: sessionId,
@@ -134,13 +183,23 @@ export default function TestCar() {
           });
           lastAlertRef.current.geofence = now;
         }
+
+        // Low fuel alert
+        if (newFuel < 20 && now - lastAlertRef.current.fuel > 30000) {
+          await supabase.rpc('create_session_alert', {
+            p_session_id: sessionId,
+            p_session_secret: sessionSecret,
+            p_message: `⛽ Low fuel warning: ${Math.round(newFuel)}% remaining`
+          });
+          lastAlertRef.current.fuel = now;
+        }
       }, 1000);
     }
 
     return () => {
       if (intervalRef.current) clearInterval(intervalRef.current);
     };
-  }, [driving, speed, sessionId, sessionSecret, token, isOutsideGeofence, distance, distanceFromCenter]);
+  }, [driving, speed, sessionId, sessionSecret, token, isOutsideGeofence, distance, distanceFromCenter, fuel]);
 
   const movePosition = (dx: number, dy: number) => {
     setCarPosition(prev => ({
@@ -149,19 +208,44 @@ export default function TestCar() {
     }));
   };
 
+  if (tokenReturned) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center p-4">
+        <Card className="max-w-md w-full text-center">
+          <CardContent className="py-12">
+            <Car className="h-12 w-12 text-primary mx-auto mb-4" />
+            <h2 className="text-xl font-bold mb-2">Token Returned</h2>
+            <p className="text-muted-foreground mb-4">You have returned this token to the owner.</p>
+            <Button onClick={() => window.location.reload()}>Use Another Token</Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
   if (!token) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center p-4">
-        <div className="absolute top-4 right-4">
+        <div className="absolute top-4 right-4 flex items-center gap-2">
+          <DemoInstructions variant="simulator" />
           <ThemeToggle />
         </div>
         <Card className="max-w-md w-full card-glow">
           <CardHeader className="text-center">
             <Car className="h-12 w-12 text-primary mx-auto mb-2" />
-            <CardTitle>Test Car Simulator</CardTitle>
+            <CardTitle>Car Simulator</CardTitle>
             <p className="help-text mt-2">Virtual driving environment for testing tokens</p>
           </CardHeader>
           <CardContent className="space-y-4">
+            <div className="p-4 bg-secondary/50 rounded-lg text-sm">
+              <p className="font-medium mb-2">🚗 How to use:</p>
+              <ol className="list-decimal list-inside space-y-1 text-muted-foreground">
+                <li>Get a token code from the vehicle owner</li>
+                <li>Enter the code below to unlock the car</li>
+                <li>Confirm seat belt and start driving</li>
+                <li>Stay within speed, distance, and geofence limits</li>
+              </ol>
+            </div>
             <div className="space-y-2">
               <Input
                 placeholder="Enter Token (XXXX-XXXX-XXXX)"
@@ -169,7 +253,7 @@ export default function TestCar() {
                 onChange={(e) => setTokenCode(e.target.value.toUpperCase())}
                 className="token-input"
               />
-              <p className="help-text">Enter the token code shared by your guardian</p>
+              <p className="help-text">Enter the token code shared by the vehicle owner</p>
             </div>
             <Button onClick={verifyToken} className="w-full" size="lg">
               <Key className="h-5 w-5 mr-2" /> Unlock Car
@@ -182,35 +266,64 @@ export default function TestCar() {
 
   return (
     <div className="min-h-screen bg-background p-4">
-      <div className="absolute top-4 right-4">
+      {/* Seat Belt Dialog */}
+      <SeatBeltDialog 
+        open={showSeatBeltDialog}
+        onConfirm={confirmSeatBeltAndStart}
+        guestName={token.guest_name}
+        carName={token.car_name}
+      />
+
+      <div className="absolute top-4 right-4 flex items-center gap-2">
+        <DemoInstructions variant="simulator" />
         <ThemeToggle />
       </div>
+      
       <div className="max-w-2xl mx-auto space-y-4">
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between flex-wrap gap-2">
           <div className="flex items-center gap-2">
             <Car className="h-8 w-8 text-primary" />
             <div>
-              <h1 className="text-xl font-bold">Test Car Simulator</h1>
-              <p className="help-text">Simulated vehicle control panel</p>
+              <h1 className="text-xl font-bold">Car Simulator</h1>
+              <p className="text-sm text-muted-foreground">
+                {token.car_name !== 'Unassigned' ? token.car_name : 'Simulated Vehicle'} • Guest: {token.guest_name}
+              </p>
             </div>
           </div>
-          {driving ? (
-            <Button variant="destructive" onClick={stopDrive}><Square className="h-4 w-4 mr-2" /> Stop</Button>
-          ) : (
-            <Button onClick={startDrive}><Play className="h-4 w-4 mr-2" /> Start Drive</Button>
-          )}
+          <div className="flex items-center gap-2">
+            {driving ? (
+              <Button variant="destructive" onClick={stopDrive}><Square className="h-4 w-4 mr-2" /> Stop</Button>
+            ) : (
+              <Button onClick={initiateStartDrive} disabled={seatBeltConfirmed && driving}>
+                <Play className="h-4 w-4 mr-2" /> Start Drive
+              </Button>
+            )}
+          </div>
         </div>
+
+        {/* Guest Actions */}
+        {driving && sessionSecret && (
+          <Card className="bg-secondary/30">
+            <CardContent className="p-4">
+              <p className="text-sm text-muted-foreground mb-2">Guest Actions</p>
+              <GuestActions 
+                tokenCode={tokenCode}
+                sessionSecret={sessionSecret}
+                guestName={token.guest_name}
+                onTokenReturned={() => setTokenReturned(true)}
+              />
+            </CardContent>
+          </Card>
+        )}
 
         {/* Geofence Map */}
         <Card>
           <CardContent className="p-4">
             <p className="help-text mb-2">Geofence boundary - stay inside the dashed circle</p>
             <div className="relative w-full aspect-square bg-secondary/30 rounded-xl overflow-hidden">
-              {/* Geofence circle */}
               <div className="absolute inset-4 rounded-full border-2 border-dashed border-primary/50 geofence-pulse" />
               <div className="absolute inset-8 rounded-full border border-primary/30" />
               
-              {/* Car position */}
               <div
                 className={`absolute w-6 h-6 rounded-full transition-all duration-200 ${isOutsideGeofence ? 'bg-destructive shadow-glow-destructive' : 'bg-primary shadow-glow'}`}
                 style={{ left: `${carPosition.x}%`, top: `${carPosition.y}%`, transform: 'translate(-50%, -50%)' }}
@@ -226,7 +339,6 @@ export default function TestCar() {
               )}
             </div>
 
-            {/* Direction controls */}
             <div className="grid grid-cols-3 gap-2 mt-4 max-w-32 mx-auto">
               <div />
               <Button variant="secondary" size="sm" onClick={() => movePosition(0, -5)}>↑</Button>
@@ -250,11 +362,23 @@ export default function TestCar() {
               </span>
             </div>
             <Slider value={speed} onValueChange={setSpeed} min={0} max={150} step={5} disabled={!driving} />
+            
+            {driving && (
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={simulateSuddenStop}
+                className="w-full border-warning text-warning hover:bg-warning/10"
+              >
+                <OctagonX className="h-4 w-4 mr-2" />
+                Simulate Sudden Stop (Accident)
+              </Button>
+            )}
           </CardContent>
         </Card>
 
-        {/* Stats */}
-        <div className="grid grid-cols-2 gap-4">
+        {/* Stats Grid */}
+        <div className="grid grid-cols-3 gap-4">
           <Card>
             <CardContent className="p-4 text-center">
               <Clock className="h-6 w-6 text-primary mx-auto mb-1" />
@@ -267,6 +391,13 @@ export default function TestCar() {
               <MapPin className="h-6 w-6 text-primary mx-auto mb-1" />
               <p className="text-2xl font-display font-bold">{distance.toFixed(2)}</p>
               <p className="text-sm text-muted-foreground">/ {Number(token.distance_limit_km)} km</p>
+            </CardContent>
+          </Card>
+          <Card className={fuel < 20 ? 'border-warning' : ''}>
+            <CardContent className="p-4 text-center">
+              <Fuel className={`h-6 w-6 mx-auto mb-1 ${fuel < 20 ? 'text-warning' : 'text-primary'}`} />
+              <p className={`text-2xl font-display font-bold ${fuel < 20 ? 'text-warning' : ''}`}>{Math.round(fuel)}%</p>
+              <p className="text-sm text-muted-foreground">Fuel</p>
             </CardContent>
           </Card>
         </div>
