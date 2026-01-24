@@ -1,22 +1,29 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
+import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { ArrowLeft, User, Mail, Phone, Lock, Eye, EyeOff, Shield, Key } from 'lucide-react';
 import { toast } from 'sonner';
+import { PasswordStrength, validatePassword } from '@/components/PasswordStrength';
+import { ThemeToggle } from '@/components/ThemeToggle';
 
-type AuthMode = 'master' | 'token';
+type AuthMode = 'owner' | 'token';
 type AuthStep = 'login' | 'register';
 
 export default function Auth() {
-  const [mode, setMode] = useState<AuthMode>('master');
+  const [mode, setMode] = useState<AuthMode>('owner');
   const [step, setStep] = useState<AuthStep>('login');
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [forgotPasswordOpen, setForgotPasswordOpen] = useState(false);
+  const [resetEmail, setResetEmail] = useState('');
+  const [resetLoading, setResetLoading] = useState(false);
   
   // Form fields
   const [email, setEmail] = useState('');
@@ -29,7 +36,7 @@ export default function Auth() {
   const { signIn, signUp } = useAuth();
   const navigate = useNavigate();
 
-  const handleMasterLogin = async (e: React.FormEvent) => {
+  const handleOwnerLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
 
@@ -48,7 +55,7 @@ export default function Auth() {
     }
   };
 
-  const handleMasterRegister = async (e: React.FormEvent) => {
+  const handleOwnerRegister = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (password !== confirmPassword) {
@@ -56,8 +63,9 @@ export default function Auth() {
       return;
     }
 
-    if (password.length < 6) {
-      toast.error('Password must be at least 6 characters');
+    const passwordValidation = validatePassword(password);
+    if (!passwordValidation.valid) {
+      toast.error(passwordValidation.message);
       return;
     }
 
@@ -84,13 +92,38 @@ export default function Auth() {
       toast.error('Please enter a valid token');
       return;
     }
-    // Navigate to child dashboard with token
+    // Navigate to guest view with token
     navigate(`/child?token=${token.replace(/\s/g, '').toUpperCase()}`);
+  };
+
+  const handleForgotPassword = async () => {
+    if (!resetEmail.trim()) {
+      toast.error('Please enter your email address');
+      return;
+    }
+
+    setResetLoading(true);
+    const { error } = await supabase.auth.resetPasswordForEmail(resetEmail, {
+      redirectTo: `${window.location.origin}/auth`,
+    });
+
+    if (error) {
+      toast.error(error.message);
+    } else {
+      toast.success('Password reset email sent! Check your inbox.');
+      setForgotPasswordOpen(false);
+      setResetEmail('');
+    }
+    setResetLoading(false);
   };
 
   return (
     <div className="min-h-screen bg-background flex flex-col items-center justify-center p-4">
-      <div className="w-full max-w-md space-y-6">
+      <div className="absolute top-4 right-4">
+        <ThemeToggle />
+      </div>
+      
+      <div className="w-full max-w-md space-y-6 animate-in">
         {/* Logo */}
         <div className="text-center mb-8">
           <div className="flex items-center justify-center gap-2 mb-2">
@@ -111,11 +144,11 @@ export default function Auth() {
               </button>
             )}
             <CardTitle className="text-2xl font-display">
-              {step === 'login' ? 'Welcome Back' : 'Create Master Account'}
+              {step === 'login' ? 'Welcome Back' : 'Create Owner Account'}
             </CardTitle>
             <CardDescription>
               {step === 'login' 
-                ? mode === 'master' 
+                ? mode === 'owner' 
                   ? 'Access your control panel to manage vehicle permissions' 
                   : 'Enter your access token to unlock the vehicle'
                 : 'Register as a vehicle owner to manage access and monitor usage'
@@ -127,15 +160,15 @@ export default function Auth() {
             {step === 'login' && (
               <>
                 {/* Mode Tabs */}
-                <div className="flex bg-secondary/50 rounded-lg p-1">
+                <div className="flex bg-secondary rounded-lg p-1 gap-1">
                   <Button
                     variant="tab"
-                    data-active={mode === 'master'}
+                    data-active={mode === 'owner'}
                     className="flex-1 gap-2"
-                    onClick={() => setMode('master')}
+                    onClick={() => setMode('owner')}
                   >
                     <User className="h-4 w-4" />
-                    Master Account
+                    <span className="hidden sm:inline">Owner</span>
                   </Button>
                   <Button
                     variant="tab"
@@ -144,12 +177,12 @@ export default function Auth() {
                     onClick={() => setMode('token')}
                   >
                     <Key className="h-4 w-4" />
-                    User Token
+                    <span className="hidden sm:inline">Guest Token</span>
                   </Button>
                 </div>
 
-                {mode === 'master' ? (
-                  <form onSubmit={handleMasterLogin} className="space-y-4">
+                {mode === 'owner' ? (
+                  <form onSubmit={handleOwnerLogin} className="space-y-4">
                     <div className="space-y-2">
                       <Label htmlFor="email">Email Address</Label>
                       <div className="relative">
@@ -167,7 +200,43 @@ export default function Auth() {
                     </div>
 
                     <div className="space-y-2">
-                      <Label htmlFor="password">Password</Label>
+                      <div className="flex items-center justify-between">
+                        <Label htmlFor="password">Password</Label>
+                        <Dialog open={forgotPasswordOpen} onOpenChange={setForgotPasswordOpen}>
+                          <DialogTrigger asChild>
+                            <button type="button" className="text-xs text-primary hover:underline">
+                              Forgot password?
+                            </button>
+                          </DialogTrigger>
+                          <DialogContent>
+                            <DialogHeader>
+                              <DialogTitle>Reset Password</DialogTitle>
+                              <DialogDescription>
+                                Enter your email address and we'll send you a link to reset your password.
+                              </DialogDescription>
+                            </DialogHeader>
+                            <div className="space-y-4 py-4">
+                              <div className="space-y-2">
+                                <Label htmlFor="resetEmail">Email Address</Label>
+                                <Input
+                                  id="resetEmail"
+                                  type="email"
+                                  placeholder="john@example.com"
+                                  value={resetEmail}
+                                  onChange={(e) => setResetEmail(e.target.value)}
+                                />
+                              </div>
+                              <Button 
+                                onClick={handleForgotPassword} 
+                                disabled={resetLoading}
+                                className="w-full"
+                              >
+                                {resetLoading ? 'Sending...' : 'Send Reset Link'}
+                              </Button>
+                            </div>
+                          </DialogContent>
+                        </Dialog>
+                      </div>
                       <div className="relative">
                         <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
                         <Input
@@ -182,7 +251,7 @@ export default function Auth() {
                         <button
                           type="button"
                           onClick={() => setShowPassword(!showPassword)}
-                          className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                          className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
                         >
                           {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
                         </button>
@@ -206,15 +275,15 @@ export default function Auth() {
                   </form>
                 ) : (
                   <form onSubmit={handleTokenAccess} className="space-y-4">
-                    <Card className="bg-secondary/30 border-border/50">
+                    <Card className="bg-secondary/50 border-border/50">
                       <CardContent className="p-4 space-y-4">
                         <div className="flex items-center gap-3">
                           <div className="h-12 w-12 rounded-lg bg-primary/20 flex items-center justify-center">
                             <Key className="h-6 w-6 text-primary" />
                           </div>
                           <div>
-                            <h4 className="font-semibold">Token Access</h4>
-                            <p className="text-sm text-muted-foreground">Enter the token shared by the master</p>
+                            <h4 className="font-semibold">Guest Token Access</h4>
+                            <p className="text-sm text-muted-foreground">Enter the token shared by the owner</p>
                           </div>
                         </div>
 
@@ -233,10 +302,10 @@ export default function Auth() {
                       </CardContent>
                     </Card>
 
-                    <Card className="bg-secondary/30 border-border/50">
+                    <Card className="bg-secondary/50 border-border/50">
                       <CardContent className="p-4 text-center text-sm text-muted-foreground">
                         Tokens are single-use and expire after the set time limit. 
-                        Violations will be reported to the master account.
+                        Violations will be reported to the vehicle owner.
                       </CardContent>
                     </Card>
 
@@ -249,7 +318,7 @@ export default function Auth() {
             )}
 
             {step === 'register' && (
-              <form onSubmit={handleMasterRegister} className="space-y-4">
+              <form onSubmit={handleOwnerRegister} className="space-y-4">
                 <div className="space-y-2">
                   <Label htmlFor="fullName">Full Name</Label>
                   <div className="relative">
@@ -314,11 +383,12 @@ export default function Auth() {
                     <button
                       type="button"
                       onClick={() => setShowPassword(!showPassword)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
                     >
                       {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
                     </button>
                   </div>
+                  <PasswordStrength password={password} />
                 </div>
 
                 <div className="space-y-2">
@@ -337,26 +407,29 @@ export default function Auth() {
                     <button
                       type="button"
                       onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
                     >
                       {showConfirmPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
                     </button>
                   </div>
+                  {confirmPassword && password !== confirmPassword && (
+                    <p className="text-xs text-destructive">Passwords do not match</p>
+                  )}
                 </div>
 
-                <Card className="bg-secondary/30 border-border/50">
+                <Card className="bg-secondary/50 border-border/50">
                   <CardContent className="p-4 flex gap-3 items-start">
                     <div className="h-6 w-6 rounded-full border-2 border-primary flex items-center justify-center flex-shrink-0 mt-0.5">
                       <div className="h-2 w-2 rounded-full bg-primary" />
                     </div>
                     <p className="text-sm text-muted-foreground">
-                      Your account will have full control over vehicle access, including creating user tokens, setting restrictions, and receiving violation alerts.
+                      Your account will have full control over vehicle access, including creating guest tokens, setting restrictions, and receiving violation alerts.
                     </p>
                   </CardContent>
                 </Card>
 
                 <Button type="submit" className="w-full" size="lg" disabled={loading}>
-                  {loading ? 'Creating Account...' : 'Create Master Account'}
+                  {loading ? 'Creating Account...' : 'Create Owner Account'}
                 </Button>
               </form>
             )}

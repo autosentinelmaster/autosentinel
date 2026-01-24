@@ -4,12 +4,13 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Slider } from '@/components/ui/slider';
-import { Car, Gauge, Clock, MapPin, AlertTriangle, Play, Square, Key, Fuel, OctagonX } from 'lucide-react';
+import { Car, Gauge, Clock, MapPin, AlertTriangle, Play, Square, Key, Fuel, OctagonX, Pause } from 'lucide-react';
 import { toast } from 'sonner';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import { SeatBeltDialog } from '@/components/SeatBeltDialog';
 import { GuestActions } from '@/components/GuestActions';
 import { DemoInstructions } from '@/components/DemoInstructions';
+import { useSessionPersistence } from '@/hooks/useSessionPersistence';
 
 // Validated token data from RPC function
 interface ValidatedToken {
@@ -32,6 +33,7 @@ export default function TestCar() {
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [sessionSecret, setSessionSecret] = useState<string | null>(null);
   const [driving, setDriving] = useState(false);
+  const [isPaused, setIsPaused] = useState(false);
   const [speed, setSpeed] = useState([0]);
   const [distance, setDistance] = useState(0);
   const [elapsed, setElapsed] = useState(0);
@@ -41,11 +43,56 @@ export default function TestCar() {
   const [seatBeltConfirmed, setSeatBeltConfirmed] = useState(false);
   const [tokenReturned, setTokenReturned] = useState(false);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
-  const lastAlertRef = useRef<{ speed: number; geofence: number; fuel: number }>({ speed: 0, geofence: 0, fuel: 0 });
+  const lastAlertRef = useRef<{ speed: number; geofence: number; fuel: number; distance: number }>({ 
+    speed: 0, geofence: 0, fuel: 0, distance: 0 
+  });
+  
+  const { saveSession, restoreSession, clearSession } = useSessionPersistence(tokenCode);
 
   const geofenceRadius = token ? Number(token.geofence_radius_km) : 5;
   const distanceFromCenter = Math.sqrt(Math.pow(carPosition.x - 50, 2) + Math.pow(carPosition.y - 50, 2)) / 40 * geofenceRadius;
   const isOutsideGeofence = distanceFromCenter > geofenceRadius;
+
+  // Restore session on mount
+  useEffect(() => {
+    if (token && tokenCode) {
+      const savedSession = restoreSession();
+      if (savedSession && savedSession.sessionId && savedSession.sessionSecret) {
+        setSessionId(savedSession.sessionId);
+        setSessionSecret(savedSession.sessionSecret);
+        setDriving(savedSession.driving);
+        setIsPaused(savedSession.isPaused || false);
+        setSpeed([savedSession.speed]);
+        setDistance(savedSession.distance);
+        setElapsed(savedSession.elapsed);
+        setFuel(savedSession.fuel);
+        setCarPosition(savedSession.carPosition);
+        setSeatBeltConfirmed(savedSession.seatBeltConfirmed);
+        
+        if (savedSession.isPaused) {
+          toast.info('Session restored - Resume driving when ready');
+        }
+      }
+    }
+  }, [token, tokenCode]);
+
+  // Save session state periodically
+  useEffect(() => {
+    if (driving && sessionId) {
+      saveSession({
+        sessionId,
+        sessionSecret,
+        driving,
+        isPaused,
+        speed: speed[0],
+        distance,
+        elapsed,
+        fuel,
+        carPosition,
+        seatBeltConfirmed
+      });
+    }
+  }, [driving, speed, distance, elapsed, fuel, carPosition, sessionId]);
 
   const verifyToken = async () => {
     const { data, error } = await supabase.rpc('validate_driving_token', {
@@ -97,7 +144,19 @@ export default function TestCar() {
     });
     
     setDriving(true);
+    setIsPaused(false);
     toast.success('Drive started! Stay safe.');
+  };
+
+  const resumeDrive = () => {
+    setIsPaused(false);
+    setDriving(true);
+    toast.success('Drive resumed!');
+  };
+
+  const pauseDrive = () => {
+    setIsPaused(true);
+    toast.info('Drive paused - your progress is saved');
   };
 
   const stopDrive = async () => {
@@ -110,7 +169,8 @@ export default function TestCar() {
 
     if (data) {
       setDriving(false);
-      setSessionSecret(null);
+      setIsPaused(false);
+      clearSession();
       toast.success('Drive ended!');
     } else {
       toast.error('Failed to end session');
@@ -141,7 +201,7 @@ export default function TestCar() {
   };
 
   useEffect(() => {
-    if (driving && sessionId && sessionSecret && token) {
+    if (driving && !isPaused && sessionId && sessionSecret && token) {
       intervalRef.current = setInterval(async () => {
         setElapsed(prev => prev + 1);
         const newDistance = distance + (speed[0] / 3600);
@@ -163,28 +223,42 @@ export default function TestCar() {
 
         const result = data?.[0];
         const now = Date.now();
+        const THROTTLE_INTERVAL = 15000; // 15 seconds throttle
         
-        // Speed violation alert
-        if (result?.speed_violation && now - lastAlertRef.current.speed > 10000) {
+        // Speed violation alert - throttled
+        if (result?.speed_violation && now - lastAlertRef.current.speed > THROTTLE_INTERVAL) {
           await supabase.rpc('create_session_alert', {
             p_session_id: sessionId,
             p_session_secret: sessionSecret,
             p_message: `Speed violation: ${speed[0]} km/h (limit: ${token.speed_limit} km/h)`
           });
           lastAlertRef.current.speed = now;
+          toast.error(`Speed limit exceeded! Reduce to ${token.speed_limit} km/h`);
         }
 
-        // Geofence breach alert
-        if (isOutsideGeofence && now - lastAlertRef.current.geofence > 10000) {
+        // Geofence breach alert - throttled
+        if (isOutsideGeofence && now - lastAlertRef.current.geofence > THROTTLE_INTERVAL) {
           await supabase.rpc('create_session_alert', {
             p_session_id: sessionId,
             p_session_secret: sessionSecret,
             p_message: `Geofence breach: Vehicle is ${distanceFromCenter.toFixed(1)} km from center`
           });
           lastAlertRef.current.geofence = now;
+          toast.error('Return to geofence area!');
         }
 
-        // Low fuel alert
+        // Distance limit alert - throttled
+        if (newDistance > Number(token.distance_limit_km) && now - lastAlertRef.current.distance > THROTTLE_INTERVAL) {
+          await supabase.rpc('create_session_alert', {
+            p_session_id: sessionId,
+            p_session_secret: sessionSecret,
+            p_message: `Distance limit exceeded: ${newDistance.toFixed(1)} km (limit: ${token.distance_limit_km} km)`
+          });
+          lastAlertRef.current.distance = now;
+          toast.error('Distance limit exceeded!');
+        }
+
+        // Low fuel alert - throttled (longer interval)
         if (newFuel < 20 && now - lastAlertRef.current.fuel > 30000) {
           await supabase.rpc('create_session_alert', {
             p_session_id: sessionId,
@@ -199,7 +273,7 @@ export default function TestCar() {
     return () => {
       if (intervalRef.current) clearInterval(intervalRef.current);
     };
-  }, [driving, speed, sessionId, sessionSecret, token, isOutsideGeofence, distance, distanceFromCenter, fuel]);
+  }, [driving, isPaused, speed, sessionId, sessionSecret, token, isOutsideGeofence, distance, distanceFromCenter, fuel]);
 
   const movePosition = (dx: number, dy: number) => {
     setCarPosition(prev => ({
@@ -211,7 +285,7 @@ export default function TestCar() {
   if (tokenReturned) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center p-4">
-        <Card className="max-w-md w-full text-center">
+        <Card className="max-w-md w-full text-center animate-in">
           <CardContent className="py-12">
             <Car className="h-12 w-12 text-primary mx-auto mb-4" />
             <h2 className="text-xl font-bold mb-2">Token Returned</h2>
@@ -230,14 +304,14 @@ export default function TestCar() {
           <DemoInstructions variant="simulator" />
           <ThemeToggle />
         </div>
-        <Card className="max-w-md w-full card-glow">
+        <Card className="max-w-md w-full card-glow animate-in">
           <CardHeader className="text-center">
             <Car className="h-12 w-12 text-primary mx-auto mb-2" />
             <CardTitle>Car Simulator</CardTitle>
             <p className="help-text mt-2">Virtual driving environment for testing tokens</p>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="p-4 bg-secondary/50 rounded-lg text-sm">
+            <div className="p-4 bg-secondary rounded-lg text-sm">
               <p className="font-medium mb-2">🚗 How to use:</p>
               <ol className="list-decimal list-inside space-y-1 text-muted-foreground">
                 <li>Get a token code from the vehicle owner</li>
@@ -291,8 +365,29 @@ export default function TestCar() {
             </div>
           </div>
           <div className="flex items-center gap-2">
-            {driving ? (
-              <Button variant="destructive" onClick={stopDrive}><Square className="h-4 w-4 mr-2" /> Stop</Button>
+            {isPaused && (
+              <span className="px-2 py-1 bg-warning/20 text-warning text-xs rounded-full flex items-center gap-1">
+                <Pause className="h-3 w-3" /> Paused
+              </span>
+            )}
+            {driving && !isPaused ? (
+              <div className="flex gap-2">
+                <Button variant="outline" size="sm" onClick={pauseDrive}>
+                  <Pause className="h-4 w-4" />
+                </Button>
+                <Button variant="destructive" size="sm" onClick={stopDrive}>
+                  <Square className="h-4 w-4 mr-1" /> Stop
+                </Button>
+              </div>
+            ) : isPaused ? (
+              <div className="flex gap-2">
+                <Button onClick={resumeDrive} size="sm">
+                  <Play className="h-4 w-4 mr-1" /> Resume
+                </Button>
+                <Button variant="destructive" size="sm" onClick={stopDrive}>
+                  <Square className="h-4 w-4" />
+                </Button>
+              </div>
             ) : (
               <Button onClick={initiateStartDrive} disabled={seatBeltConfirmed && driving}>
                 <Play className="h-4 w-4 mr-2" /> Start Drive
@@ -302,14 +397,15 @@ export default function TestCar() {
         </div>
 
         {/* Guest Actions */}
-        {driving && sessionSecret && (
-          <Card className="bg-secondary/30">
+        {(driving || isPaused) && sessionSecret && (
+          <Card className="bg-secondary/30 animate-in">
             <CardContent className="p-4">
               <p className="text-sm text-muted-foreground mb-2">Guest Actions</p>
               <GuestActions 
                 tokenCode={tokenCode}
                 sessionSecret={sessionSecret}
                 guestName={token.guest_name}
+                tokenId={token.token_id}
                 onTokenReturned={() => setTokenReturned(true)}
               />
             </CardContent>
@@ -317,7 +413,7 @@ export default function TestCar() {
         )}
 
         {/* Geofence Map */}
-        <Card>
+        <Card className="animate-in stagger-1">
           <CardContent className="p-4">
             <p className="help-text mb-2">Geofence boundary - stay inside the dashed circle</p>
             <div className="relative w-full aspect-square bg-secondary/30 rounded-xl overflow-hidden">
@@ -332,7 +428,7 @@ export default function TestCar() {
               </div>
 
               {isOutsideGeofence && (
-                <div className="absolute top-2 left-2 right-2 bg-destructive/90 text-destructive-foreground px-3 py-2 rounded-lg flex items-center gap-2">
+                <div className="absolute top-2 left-2 right-2 bg-destructive/90 text-destructive-foreground px-3 py-2 rounded-lg flex items-center gap-2 animate-shake">
                   <AlertTriangle className="h-5 w-5" />
                   <span className="font-semibold">GEOFENCE BREACH!</span>
                 </div>
@@ -341,33 +437,45 @@ export default function TestCar() {
 
             <div className="grid grid-cols-3 gap-2 mt-4 max-w-32 mx-auto">
               <div />
-              <Button variant="secondary" size="sm" onClick={() => movePosition(0, -5)}>↑</Button>
+              <Button variant="secondary" size="sm" onClick={() => movePosition(0, -5)} disabled={!driving || isPaused}>↑</Button>
               <div />
-              <Button variant="secondary" size="sm" onClick={() => movePosition(-5, 0)}>←</Button>
-              <Button variant="secondary" size="sm" onClick={() => setCarPosition({ x: 50, y: 50 })}>⊙</Button>
-              <Button variant="secondary" size="sm" onClick={() => movePosition(5, 0)}>→</Button>
+              <Button variant="secondary" size="sm" onClick={() => movePosition(-5, 0)} disabled={!driving || isPaused}>←</Button>
+              <Button variant="secondary" size="sm" onClick={() => setCarPosition({ x: 50, y: 50 })} disabled={!driving || isPaused}>⊙</Button>
+              <Button variant="secondary" size="sm" onClick={() => movePosition(5, 0)} disabled={!driving || isPaused}>→</Button>
               <div />
-              <Button variant="secondary" size="sm" onClick={() => movePosition(0, 5)}>↓</Button>
+              <Button variant="secondary" size="sm" onClick={() => movePosition(0, 5)} disabled={!driving || isPaused}>↓</Button>
             </div>
           </CardContent>
         </Card>
 
         {/* Speed Control */}
-        <Card className={speed[0] > token.speed_limit ? 'border-destructive/50' : ''}>
+        <Card className={`animate-in stagger-2 ${speed[0] > token.speed_limit ? 'border-destructive/50' : ''}`}>
           <CardContent className="p-4 space-y-4">
             <div className="flex items-center justify-between">
               <span className="flex items-center gap-2"><Gauge className="h-5 w-5 text-primary" /> Speed</span>
-              <span className={`text-2xl font-display font-bold ${speed[0] > token.speed_limit ? 'text-destructive' : ''}`}>
-                {speed[0]} / {token.speed_limit} km/h
-              </span>
+              <div className="flex items-center gap-2">
+                <Input
+                  type="number"
+                  value={speed[0]}
+                  onChange={(e) => setSpeed([Math.max(0, Math.min(150, parseInt(e.target.value) || 0))])}
+                  className="w-20 h-8 text-center"
+                  disabled={!driving || isPaused}
+                  min={0}
+                  max={150}
+                />
+                <span className={`text-lg font-display font-bold ${speed[0] > token.speed_limit ? 'text-destructive' : ''}`}>
+                  / {token.speed_limit} km/h
+                </span>
+              </div>
             </div>
-            <Slider value={speed} onValueChange={setSpeed} min={0} max={150} step={5} disabled={!driving} />
+            <Slider value={speed} onValueChange={setSpeed} min={0} max={150} step={5} disabled={!driving || isPaused} />
             
-            {driving && (
+            {(driving || isPaused) && (
               <Button 
                 variant="outline" 
                 size="sm" 
                 onClick={simulateSuddenStop}
+                disabled={isPaused}
                 className="w-full border-warning text-warning hover:bg-warning/10"
               >
                 <OctagonX className="h-4 w-4 mr-2" />
@@ -378,26 +486,26 @@ export default function TestCar() {
         </Card>
 
         {/* Stats Grid */}
-        <div className="grid grid-cols-3 gap-4">
-          <Card>
-            <CardContent className="p-4 text-center">
-              <Clock className="h-6 w-6 text-primary mx-auto mb-1" />
-              <p className="text-2xl font-display font-bold">{Math.floor(elapsed / 60)}:{(elapsed % 60).toString().padStart(2, '0')}</p>
-              <p className="text-sm text-muted-foreground">/ {token.time_limit_minutes} mins</p>
+        <div className="grid grid-cols-3 gap-3 animate-in stagger-3">
+          <Card className={elapsed / 60 > token.time_limit_minutes ? 'border-destructive/50' : ''}>
+            <CardContent className="p-3 text-center">
+              <Clock className="h-5 w-5 text-primary mx-auto mb-1" />
+              <p className="text-xl font-display font-bold">{Math.floor(elapsed / 60)}:{(elapsed % 60).toString().padStart(2, '0')}</p>
+              <p className="text-xs text-muted-foreground">/ {token.time_limit_minutes} mins</p>
             </CardContent>
           </Card>
-          <Card>
-            <CardContent className="p-4 text-center">
-              <MapPin className="h-6 w-6 text-primary mx-auto mb-1" />
-              <p className="text-2xl font-display font-bold">{distance.toFixed(2)}</p>
-              <p className="text-sm text-muted-foreground">/ {Number(token.distance_limit_km)} km</p>
+          <Card className={distance > Number(token.distance_limit_km) ? 'border-destructive/50' : ''}>
+            <CardContent className="p-3 text-center">
+              <MapPin className="h-5 w-5 text-primary mx-auto mb-1" />
+              <p className="text-xl font-display font-bold">{distance.toFixed(2)}</p>
+              <p className="text-xs text-muted-foreground">/ {Number(token.distance_limit_km)} km</p>
             </CardContent>
           </Card>
           <Card className={fuel < 20 ? 'border-warning' : ''}>
-            <CardContent className="p-4 text-center">
-              <Fuel className={`h-6 w-6 mx-auto mb-1 ${fuel < 20 ? 'text-warning' : 'text-primary'}`} />
-              <p className={`text-2xl font-display font-bold ${fuel < 20 ? 'text-warning' : ''}`}>{Math.round(fuel)}%</p>
-              <p className="text-sm text-muted-foreground">Fuel</p>
+            <CardContent className="p-3 text-center">
+              <Fuel className={`h-5 w-5 mx-auto mb-1 ${fuel < 20 ? 'text-warning' : 'text-primary'}`} />
+              <p className={`text-xl font-display font-bold ${fuel < 20 ? 'text-warning' : ''}`}>{Math.round(fuel)}%</p>
+              <p className="text-xs text-muted-foreground">Fuel</p>
             </CardContent>
           </Card>
         </div>

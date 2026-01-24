@@ -6,15 +6,17 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { AlertTriangle, MessageCircle, Send, Undo2 } from 'lucide-react';
 import { toast } from 'sonner';
+import { GuestChatDialog } from './GuestChatDialog';
 
 interface GuestActionsProps {
   tokenCode: string;
   sessionSecret: string;
   guestName: string;
+  tokenId: string;
   onTokenReturned?: () => void;
 }
 
-export function GuestActions({ tokenCode, sessionSecret, guestName, onTokenReturned }: GuestActionsProps) {
+export function GuestActions({ tokenCode, sessionSecret, guestName, tokenId, onTokenReturned }: GuestActionsProps) {
   const [message, setMessage] = useState('');
   const [sending, setSending] = useState(false);
   const [messageDialogOpen, setMessageDialogOpen] = useState(false);
@@ -31,26 +33,6 @@ export function GuestActions({ tokenCode, sessionSecret, guestName, onTokenRetur
     } else {
       toast.error('Failed to send SOS');
     }
-  };
-
-  const sendMessage = async () => {
-    if (!message.trim()) return;
-    
-    setSending(true);
-    const { data, error } = await supabase.rpc('send_guest_message', {
-      p_token_code: tokenCode,
-      p_session_secret: sessionSecret,
-      p_message: message.trim()
-    });
-
-    if (data) {
-      toast.success('Message sent to owner');
-      setMessage('');
-      setMessageDialogOpen(false);
-    } else {
-      toast.error('Failed to send message');
-    }
-    setSending(false);
   };
 
   const returnToken = async () => {
@@ -74,7 +56,7 @@ export function GuestActions({ tokenCode, sessionSecret, guestName, onTokenRetur
         <AlertDialogTrigger asChild>
           <Button variant="destructive" size="sm" className="animate-pulse">
             <AlertTriangle className="h-4 w-4 mr-1" />
-            SOS
+            <span className="hidden sm:inline">SOS</span>
           </Button>
         </AlertDialogTrigger>
         <AlertDialogContent>
@@ -97,43 +79,20 @@ export function GuestActions({ tokenCode, sessionSecret, guestName, onTokenRetur
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* Message Owner */}
-      <Dialog open={messageDialogOpen} onOpenChange={setMessageDialogOpen}>
-        <DialogTrigger asChild>
-          <Button variant="outline" size="sm">
-            <MessageCircle className="h-4 w-4 mr-1" />
-            Message Owner
-          </Button>
-        </DialogTrigger>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Send Message to Owner</DialogTitle>
-            <DialogDescription>
-              Let the owner know if you have any issues or updates.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4 py-4">
-            <Input
-              placeholder="Type your message..."
-              value={message}
-              onChange={(e) => setMessage(e.target.value)}
-              maxLength={500}
-            />
-            <p className="text-xs text-muted-foreground">{message.length}/500 characters</p>
-            <Button onClick={sendMessage} disabled={sending || !message.trim()} className="w-full">
-              <Send className="h-4 w-4 mr-2" />
-              Send Message
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
+      {/* Chat with Owner */}
+      <GuestChatDialog 
+        tokenCode={tokenCode}
+        sessionSecret={sessionSecret}
+        tokenId={tokenId}
+        guestName={guestName}
+      />
 
       {/* Return Token */}
       <AlertDialog>
         <AlertDialogTrigger asChild>
           <Button variant="secondary" size="sm">
             <Undo2 className="h-4 w-4 mr-1" />
-            Return Token
+            <span className="hidden sm:inline">Return</span>
           </Button>
         </AlertDialogTrigger>
         <AlertDialogContent>
