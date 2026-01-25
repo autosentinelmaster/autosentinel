@@ -146,24 +146,24 @@ export function CarManager({ onCarsChange }: CarManagerProps) {
         <div className="flex items-center justify-between">
           <CardTitle className="flex items-center gap-2 text-lg">
             <Car className="h-5 w-5 text-primary" />
-            My Vehicles
+            My Vehicles 🚗
           </CardTitle>
           <Dialog open={dialogOpen} onOpenChange={(open) => {
             setDialogOpen(open);
             if (!open) resetForm();
           }}>
             <DialogTrigger asChild>
-              <Button size="sm">
-                <Plus className="h-4 w-4 mr-1" /> Add Car
+              <Button size="sm" className="gap-1">
+                <Plus className="h-4 w-4" /> Add
               </Button>
             </DialogTrigger>
             <DialogContent>
               <DialogHeader>
-                <DialogTitle>{editingCar ? 'Edit Vehicle' : 'Add New Vehicle'}</DialogTitle>
+                <DialogTitle>{editingCar ? 'Edit Vehicle ✏️' : 'Add New Vehicle 🚗'}</DialogTitle>
               </DialogHeader>
               <div className="space-y-4 py-4">
                 <div className="space-y-2">
-                  <Label htmlFor="carName">Car Name *</Label>
+                  <Label htmlFor="carName">Vehicle Name *</Label>
                   <Input
                     id="carName"
                     placeholder="e.g., Family SUV"
@@ -219,7 +219,7 @@ export function CarManager({ onCarsChange }: CarManagerProps) {
             </DialogContent>
           </Dialog>
         </div>
-        <p className="help-text">Register your vehicles for token assignment</p>
+        <p className="help-text">Register your cars, bikes, or any vehicle for token assignment</p>
       </CardHeader>
       <CardContent>
         {loading ? (
