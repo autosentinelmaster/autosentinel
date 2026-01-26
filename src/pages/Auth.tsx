@@ -437,7 +437,7 @@ export default function Auth() {
         </Card>
 
         <footer className="text-center text-sm text-muted-foreground">
-          <p>© 2024 AutoSentinel. All rights reserved.</p>
+          <p>© 2026 AutoSentinel. All rights reserved.</p>
           <p>Powered by AI for safer mobility</p>
         </footer>
       </div>

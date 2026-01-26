@@ -11,6 +11,8 @@ import { SeatBeltDialog } from '@/components/SeatBeltDialog';
 import { GuestActions } from '@/components/GuestActions';
 import { DemoInstructions } from '@/components/DemoInstructions';
 import { useSessionPersistence } from '@/hooks/useSessionPersistence';
+import { InactivityDetector } from '@/components/InactivityDetector';
+import { SessionFeedback } from '@/components/SessionFeedback';
 
 // Validated token data from RPC function
 interface ValidatedToken {
@@ -42,6 +44,8 @@ export default function TestCar() {
   const [showSeatBeltDialog, setShowSeatBeltDialog] = useState(false);
   const [seatBeltConfirmed, setSeatBeltConfirmed] = useState(false);
   const [tokenReturned, setTokenReturned] = useState(false);
+  const [showFeedback, setShowFeedback] = useState(false);
+  const [sessionEnded, setSessionEnded] = useState(false);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
   const lastAlertRef = useRef<{ speed: number; geofence: number; fuel: number; distance: number }>({ 
     speed: 0, geofence: 0, fuel: 0, distance: 0 
@@ -171,10 +175,27 @@ export default function TestCar() {
       setDriving(false);
       setIsPaused(false);
       clearSession();
+      setSessionEnded(true);
+      setShowFeedback(true);
       toast.success('Drive ended!');
     } else {
       toast.error('Failed to end session');
     }
+  };
+
+  const handleInactivityAlert = async () => {
+    if (!sessionId || !sessionSecret) return;
+    await supabase.rpc('create_session_alert', {
+      p_session_id: sessionId,
+      p_session_secret: sessionSecret,
+      p_message: '⚠️ Guest is inactive for 2+ minutes'
+    });
+    toast.warning('Owner has been notified of your inactivity');
+  };
+
+  const handleFeedbackSubmit = (feedback: { emoji: string; comment: string }) => {
+    toast.success(`Thanks for your feedback! ${feedback.emoji}`);
+    setShowFeedback(false);
   };
 
   const simulateSuddenStop = async () => {
@@ -346,6 +367,21 @@ export default function TestCar() {
         onConfirm={confirmSeatBeltAndStart}
         guestName={token.guest_name}
         carName={token.car_name}
+      />
+
+      {/* Inactivity Detector */}
+      <InactivityDetector 
+        isActive={driving && !isPaused}
+        onInactivityAlert={handleInactivityAlert}
+        timeoutMs={120000}
+      />
+
+      {/* Session Feedback */}
+      <SessionFeedback 
+        open={showFeedback}
+        onClose={() => setShowFeedback(false)}
+        onSubmit={handleFeedbackSubmit}
+        vehicleName={token.car_name}
       />
 
       <div className="absolute top-4 right-4 flex items-center gap-2">

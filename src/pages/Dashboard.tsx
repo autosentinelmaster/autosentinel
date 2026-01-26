@@ -12,7 +12,7 @@ import { Badge } from '@/components/ui/badge';
 import { 
   Shield, Plus, Car, Activity, AlertTriangle, 
   Clock, Gauge, MapPin, CheckCircle, Fuel, Undo2, Archive, XCircle, Copy,
-  User, PauseCircle, Menu
+  User, PauseCircle, Menu, Key
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
@@ -373,15 +373,15 @@ export default function Dashboard() {
             </CardContent>
           </Card>
 
-          <Card className="stats-card animate-in stagger-1">
+        <Card className="stats-card animate-in stagger-1">
             <CardContent className="p-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-xs text-muted-foreground mb-1">Live Sessions</p>
-                  <p className="text-3xl font-display font-bold">{activeSessionsCount}</p>
+                  <p className="text-xs text-muted-foreground mb-1">Created Tokens</p>
+                  <p className="text-3xl font-display font-bold">{tokens.length}</p>
                 </div>
-                <div className={`h-12 w-12 rounded-2xl flex items-center justify-center ${activeSessionsCount > 0 ? 'bg-success/10' : 'bg-muted'}`}>
-                  <Activity className={`h-6 w-6 ${activeSessionsCount > 0 ? 'text-success' : 'text-muted-foreground'}`} />
+                <div className="h-12 w-12 rounded-2xl bg-secondary flex items-center justify-center">
+                  <Key className="h-6 w-6 text-muted-foreground" />
                 </div>
               </div>
             </CardContent>
