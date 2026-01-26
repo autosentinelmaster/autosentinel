@@ -1,24 +1,19 @@
 import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { 
   Shield, Plus, Car, Activity, AlertTriangle, 
   Clock, Gauge, MapPin, CheckCircle, Fuel, Undo2, Archive, XCircle, Copy,
-  User, PauseCircle, Menu, Key
+  User, PauseCircle, Key
 } from 'lucide-react';
 import { toast } from 'sonner';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import type { Database } from '@/integrations/supabase/types';
-import { VoiceTokenCreator } from '@/components/VoiceTokenCreator';
 import { SessionSummary } from '@/components/SessionSummary';
 import { TokenShareMenu } from '@/components/TokenShareMenu';
 import { ThemeToggle } from '@/components/ThemeToggle';
@@ -26,7 +21,6 @@ import { CarManager } from '@/components/CarManager';
 import { MessageCenter } from '@/components/MessageCenter';
 import { FullScreenSOS } from '@/components/FullScreenSOS';
 import { HowItWorksGuide } from '@/components/HowItWorksGuide';
-import { SliderWithInput } from '@/components/SliderWithInput';
 import logoIcon from '@/assets/logo-icon.png';
 
 type DrivingToken = Database['public']['Tables']['driving_tokens']['Row'];
@@ -58,24 +52,12 @@ export default function Dashboard() {
   const [alerts, setAlerts] = useState<Alert[]>([]);
   const [cars, setCars] = useState<CarData[]>([]);
   const [loading, setLoading] = useState(true);
-  const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [tokenTab, setTokenTab] = useState('active');
   
   // SOS Alert state
   const [sosAlert, setSosAlert] = useState<{ open: boolean; guestName: string; message: string; vehicleName?: string }>({
     open: false, guestName: '', message: ''
   });
-  
-  // New token form state
-  const [guestName, setGuestName] = useState('');
-  const [guestPhone, setGuestPhone] = useState('');
-  const [selectedCarId, setSelectedCarId] = useState<string>('');
-  const [speedLimit, setSpeedLimit] = useState([60]);
-  const [timeLimit, setTimeLimit] = useState([30]);
-  const [distanceLimit, setDistanceLimit] = useState([10]);
-  const [geofenceRadius, setGeofenceRadius] = useState([5]);
-  const [validityHours, setValidityHours] = useState([24]);
-  const [fuelLimit, setFuelLimit] = useState([80]);
 
   useEffect(() => {
     if (authLoading) return;
@@ -88,11 +70,6 @@ export default function Dashboard() {
     return cleanup;
   }, [user, authLoading, navigate]);
 
-  useEffect(() => {
-    if (cars.length > 0 && !selectedCarId) {
-      setSelectedCarId(cars[0].id);
-    }
-  }, [cars]);
 
   const fetchData = async () => {
     if (!user) return;
@@ -187,54 +164,6 @@ export default function Dashboard() {
     };
   };
 
-  const generateTokenCode = () => {
-    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-    let result = '';
-    for (let i = 0; i < 4; i++) result += chars[Math.floor(Math.random() * chars.length)];
-    result += '-';
-    for (let i = 0; i < 4; i++) result += chars[Math.floor(Math.random() * chars.length)];
-    result += '-';
-    for (let i = 0; i < 4; i++) result += chars[Math.floor(Math.random() * chars.length)];
-    return result;
-  };
-
-  const handleCreateToken = async () => {
-    if (!user || !guestName.trim()) {
-      toast.error('Please enter guest name');
-      return;
-    }
-
-    const tokenCode = generateTokenCode();
-    const expiresAt = new Date();
-    expiresAt.setHours(expiresAt.getHours() + validityHours[0]);
-
-    const { data, error } = await supabase.from('driving_tokens').insert({
-      master_user_id: user.id,
-      token_code: tokenCode,
-      guest_name: guestName,
-      guest_phone: guestPhone || null,
-      car_id: selectedCarId || null,
-      speed_limit: speedLimit[0],
-      time_limit_minutes: timeLimit[0],
-      distance_limit_km: distanceLimit[0],
-      geofence_radius_km: geofenceRadius[0],
-      geofence_center_lat: 18.5204,
-      geofence_center_lng: 73.8567,
-      validity_hours: validityHours[0],
-      fuel_limit_percent: fuelLimit[0],
-      expires_at: expiresAt.toISOString()
-    }).select().single();
-
-    if (error) {
-      toast.error('Failed to create token 😕');
-    } else {
-      toast.success('Token created! 🎉 Share it with your guest');
-      setTokens(prev => [data, ...prev]);
-      setCreateDialogOpen(false);
-      resetForm();
-    }
-  };
-
   const handleExpireToken = async (tokenId: string) => {
     const { error } = await supabase
       .from('driving_tokens')
@@ -261,23 +190,6 @@ export default function Dashboard() {
       toast.success(currentlyActive ? 'Token withheld! Guest access is paused ⏸️' : 'Token resumed! Guest can continue 🚗');
       fetchData();
     }
-  };
-
-  const resetForm = () => {
-    setGuestName('');
-    setGuestPhone('');
-    setSelectedCarId(cars.length > 0 ? cars[0].id : '');
-    setSpeedLimit([60]);
-    setTimeLimit([30]);
-    setDistanceLimit([10]);
-    setGeofenceRadius([5]);
-    setValidityHours([24]);
-    setFuelLimit([80]);
-  };
-
-  const handleLogout = async () => {
-    await signOut();
-    navigate('/auth');
   };
 
   const getTokenStatus = (token: DrivingToken) => {
@@ -339,9 +251,6 @@ export default function Dashboard() {
           <div className="flex items-center gap-2">
             <HowItWorksGuide />
             <ThemeToggle />
-            <Button variant="ghost" size="icon" className="rounded-xl" onClick={handleLogout}>
-              <User className="h-5 w-5" />
-            </Button>
           </div>
         </div>
       </header>
@@ -420,66 +329,12 @@ export default function Dashboard() {
         <CarManager onCarsChange={(newCars) => setCars(newCars)} />
 
         {/* Create Token Button */}
-        <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
-          <DialogTrigger asChild>
-            <Button size="lg" className="w-full gap-2 text-base py-6 rounded-2xl">
-              <Plus className="h-5 w-5" />
-              Create New Token
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="sm:max-w-md max-h-[85vh] overflow-y-auto"  style={{ maxHeight: '85vh' }}>
-            <DialogHeader>
-              <DialogTitle className="font-display flex items-center justify-between">
-                Create Permission Token 🔑
-                <VoiceTokenCreator 
-                  onTokenParsed={(params) => {
-                    if (params.childName) setGuestName(params.childName);
-                    if (params.speedLimit) setSpeedLimit([params.speedLimit]);
-                    if (params.timeLimit) setTimeLimit([params.timeLimit]);
-                    if (params.distanceLimit) setDistanceLimit([params.distanceLimit]);
-                    if (params.geofenceRadius) setGeofenceRadius([params.geofenceRadius]);
-                  }}
-                />
-              </DialogTitle>
-              <DialogDescription>Set limits and share with your guest</DialogDescription>
-            </DialogHeader>
-            <div className="space-y-5 py-4">
-              <div className="space-y-2">
-                <Label>Guest Name *</Label>
-                <Input placeholder="Who's driving?" value={guestName} onChange={(e) => setGuestName(e.target.value)} />
-              </div>
-              <div className="space-y-2">
-                <Label>Phone (Optional)</Label>
-                <Input placeholder="+91 9876543210" value={guestPhone} onChange={(e) => setGuestPhone(e.target.value)} />
-              </div>
-              <div className="space-y-2">
-                <Label>Assign Vehicle</Label>
-                <Select value={selectedCarId} onValueChange={setSelectedCarId}>
-                  <SelectTrigger><SelectValue placeholder="Select vehicle" /></SelectTrigger>
-                  <SelectContent>
-                    {cars.map(car => (
-                      <SelectItem key={car.id} value={car.id}>{car.name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                {cars.length === 0 && (
-                  <p className="text-xs text-muted-foreground">Add a vehicle first to assign it</p>
-                )}
-              </div>
-
-              <SliderWithInput label="Token Valid For" icon={<Clock className="h-4 w-4 text-primary" />} value={validityHours} onChange={setValidityHours} min={1} max={72} step={1} unit="hours" />
-              <SliderWithInput label="Speed Limit" icon={<Gauge className="h-4 w-4 text-primary" />} value={speedLimit} onChange={setSpeedLimit} min={0} max={120} step={5} unit="km/h" />
-              <SliderWithInput label="Driving Time" icon={<Clock className="h-4 w-4 text-primary" />} value={timeLimit} onChange={setTimeLimit} min={0} max={180} step={5} unit="mins" />
-              <SliderWithInput label="Distance" icon={<MapPin className="h-4 w-4 text-primary" />} value={distanceLimit} onChange={setDistanceLimit} min={0} max={50} step={1} unit="km" />
-              <SliderWithInput label="Fuel Limit" icon={<Fuel className="h-4 w-4 text-primary" />} value={fuelLimit} onChange={setFuelLimit} min={0} max={100} step={5} unit="%" />
-              <SliderWithInput label="Geofence" icon={<MapPin className="h-4 w-4 text-primary" />} value={geofenceRadius} onChange={setGeofenceRadius} min={0} max={20} step={0.5} unit="km" />
-
-              <Button onClick={handleCreateToken} className="w-full py-6 text-base rounded-xl" size="lg">
-                Generate Token 🚀
-              </Button>
-            </div>
-          </DialogContent>
-        </Dialog>
+        <Link to="/create-token">
+          <Button size="lg" className="w-full gap-2 text-base py-6 rounded-2xl">
+            <Plus className="h-5 w-5" />
+            Create New Token
+          </Button>
+        </Link>
 
         {/* Tokens List */}
         <Tabs value={tokenTab} onValueChange={setTokenTab}>

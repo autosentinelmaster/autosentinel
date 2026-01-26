@@ -380,22 +380,8 @@
   .stagger-3 { animation-delay: 0.3s; }
   .stagger-4 { animation-delay: 0.4s; }
 
-  /* Dialog scrollable content fix */
-  [role="dialog"] {
-    max-height: 85vh !important;
-    overflow-y: auto !important;
-  }
-
   /* Centered dialog fix */
   [data-radix-popper-content-wrapper] {
     z-index: 50 !important;
-  }
-  
-  /* Force dialog centering */
-  [data-radix-dialog-content] {
-    position: fixed !important;
-    top: 50% !important;
-    left: 50% !important;
-    transform: translate(-50%, -50%) !important;
   }
 }
