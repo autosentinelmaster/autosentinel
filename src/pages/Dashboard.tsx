@@ -427,7 +427,7 @@ export default function Dashboard() {
               Create New Token
             </Button>
           </DialogTrigger>
-          <DialogContent className="sm:max-w-md max-h-[90vh] overflow-y-auto">
+          <DialogContent className="sm:max-w-md max-h-[85vh] overflow-y-auto"  style={{ maxHeight: '85vh' }}>
             <DialogHeader>
               <DialogTitle className="font-display flex items-center justify-between">
                 Create Permission Token 🔑
