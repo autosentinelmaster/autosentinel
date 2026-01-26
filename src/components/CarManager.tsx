@@ -1,11 +1,9 @@
 import { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Car, Plus, Trash2, Edit2 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -28,15 +26,7 @@ export function CarManager({ onCarsChange }: CarManagerProps) {
   const { user } = useAuth();
   const [cars, setCars] = useState<CarData[]>([]);
   const [loading, setLoading] = useState(true);
-  const [dialogOpen, setDialogOpen] = useState(false);
-  const [editingCar, setEditingCar] = useState<CarData | null>(null);
-  
-  // Form state
-  const [name, setName] = useState('');
-  const [make, setMake] = useState('');
-  const [model, setModel] = useState('');
-  const [licensePlate, setLicensePlate] = useState('');
-  const [fuelCapacity, setFuelCapacity] = useState('50');
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   useEffect(() => {
     if (user) {
@@ -62,82 +52,21 @@ export function CarManager({ onCarsChange }: CarManagerProps) {
     setLoading(false);
   };
 
-  const resetForm = () => {
-    setName('');
-    setMake('');
-    setModel('');
-    setLicensePlate('');
-    setFuelCapacity('50');
-    setEditingCar(null);
-  };
-
-  const handleSubmit = async () => {
-    if (!user || !name.trim()) {
-      toast.error('Please enter a car name');
-      return;
-    }
-
-    const carData = {
-      owner_id: user.id,
-      name: name.trim(),
-      make: make.trim() || null,
-      model: model.trim() || null,
-      license_plate: licensePlate.trim() || null,
-      fuel_capacity_liters: parseFloat(fuelCapacity) || 50,
-    };
-
-    if (editingCar) {
-      const { error } = await supabase
-        .from('cars')
-        .update(carData)
-        .eq('id', editingCar.id);
-
-      if (error) {
-        toast.error('Failed to update car');
-      } else {
-        toast.success('Car updated successfully');
-        fetchCars();
-        setDialogOpen(false);
-        resetForm();
-      }
-    } else {
-      const { error } = await supabase
-        .from('cars')
-        .insert(carData);
-
-      if (error) {
-        toast.error('Failed to add car');
-      } else {
-        toast.success('Car added successfully');
-        fetchCars();
-        setDialogOpen(false);
-        resetForm();
-      }
-    }
-  };
-
-  const handleEdit = (car: CarData) => {
-    setEditingCar(car);
-    setName(car.name);
-    setMake(car.make || '');
-    setModel(car.model || '');
-    setLicensePlate(car.license_plate || '');
-    setFuelCapacity(car.fuel_capacity_liters.toString());
-    setDialogOpen(true);
-  };
-
-  const handleDelete = async (carId: string) => {
+  const handleDelete = async (carId: string, carName: string) => {
+    setDeletingId(carId);
+    
     const { error } = await supabase
       .from('cars')
       .delete()
       .eq('id', carId);
 
     if (error) {
-      toast.error('Failed to delete car');
+      toast.error('Failed to delete vehicle');
     } else {
-      toast.success('Car deleted');
+      toast.success(`${carName} deleted`);
       fetchCars();
     }
+    setDeletingId(null);
   };
 
   return (
@@ -148,76 +77,11 @@ export function CarManager({ onCarsChange }: CarManagerProps) {
             <Car className="h-5 w-5 text-primary" />
             My Vehicles 🚗
           </CardTitle>
-          <Dialog open={dialogOpen} onOpenChange={(open) => {
-            setDialogOpen(open);
-            if (!open) resetForm();
-          }}>
-            <DialogTrigger asChild>
-              <Button size="sm" className="gap-1">
-                <Plus className="h-4 w-4" /> Add
-              </Button>
-            </DialogTrigger>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>{editingCar ? 'Edit Vehicle ✏️' : 'Add New Vehicle 🚗'}</DialogTitle>
-              </DialogHeader>
-              <div className="space-y-4 py-4">
-                <div className="space-y-2">
-                  <Label htmlFor="carName">Vehicle Name *</Label>
-                  <Input
-                    id="carName"
-                    placeholder="e.g., Family SUV"
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
-                  />
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="make">Make</Label>
-                    <Input
-                      id="make"
-                      placeholder="e.g., Toyota"
-                      value={make}
-                      onChange={(e) => setMake(e.target.value)}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="model">Model</Label>
-                    <Input
-                      id="model"
-                      placeholder="e.g., Camry"
-                      value={model}
-                      onChange={(e) => setModel(e.target.value)}
-                    />
-                  </div>
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="license">License Plate</Label>
-                    <Input
-                      id="license"
-                      placeholder="e.g., MH12AB1234"
-                      value={licensePlate}
-                      onChange={(e) => setLicensePlate(e.target.value)}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="fuel">Fuel Capacity (L)</Label>
-                    <Input
-                      id="fuel"
-                      type="number"
-                      placeholder="50"
-                      value={fuelCapacity}
-                      onChange={(e) => setFuelCapacity(e.target.value)}
-                    />
-                  </div>
-                </div>
-                <Button onClick={handleSubmit} className="w-full">
-                  {editingCar ? 'Update Vehicle' : 'Add Vehicle'}
-                </Button>
-              </div>
-            </DialogContent>
-          </Dialog>
+          <Link to="/add-vehicle">
+            <Button size="sm" className="gap-1">
+              <Plus className="h-4 w-4" /> Add
+            </Button>
+          </Link>
         </div>
         <p className="help-text">Register your cars, bikes, or any vehicle for token assignment</p>
       </CardHeader>
@@ -250,10 +114,17 @@ export function CarManager({ onCarsChange }: CarManagerProps) {
                   </div>
                 </div>
                 <div className="flex items-center gap-1">
-                  <Button variant="ghost" size="icon" onClick={() => handleEdit(car)}>
-                    <Edit2 className="h-4 w-4" />
-                  </Button>
-                  <Button variant="ghost" size="icon" onClick={() => handleDelete(car.id)}>
+                  <Link to={`/add-vehicle?edit=${car.id}`}>
+                    <Button variant="ghost" size="icon">
+                      <Edit2 className="h-4 w-4" />
+                    </Button>
+                  </Link>
+                  <Button 
+                    variant="ghost" 
+                    size="icon" 
+                    onClick={() => handleDelete(car.id, car.name)}
+                    disabled={deletingId === car.id}
+                  >
                     <Trash2 className="h-4 w-4 text-destructive" />
                   </Button>
                 </div>

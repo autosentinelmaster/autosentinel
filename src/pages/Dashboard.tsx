@@ -3,24 +3,23 @@ import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { 
   Shield, Plus, Car, Activity, AlertTriangle, 
-  Clock, Gauge, MapPin, CheckCircle, Fuel, Undo2, Archive, XCircle, Copy,
+  Clock, Gauge, MapPin, Fuel, Archive, XCircle,
   User, PauseCircle, Key
 } from 'lucide-react';
 import { toast } from 'sonner';
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import type { Database } from '@/integrations/supabase/types';
 import { SessionSummary } from '@/components/SessionSummary';
 import { TokenShareMenu } from '@/components/TokenShareMenu';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import { CarManager } from '@/components/CarManager';
-import { MessageCenter } from '@/components/MessageCenter';
+import { MessageButton } from '@/components/MessageButton';
 import { FullScreenSOS } from '@/components/FullScreenSOS';
-import { HowItWorksGuide } from '@/components/HowItWorksGuide';
+import { HowItWorksButton } from '@/components/HowItWorksButton';
 import logoIcon from '@/assets/logo-icon.png';
 
 type DrivingToken = Database['public']['Tables']['driving_tokens']['Row'];
@@ -249,7 +248,7 @@ export default function Dashboard() {
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <HowItWorksGuide />
+            <HowItWorksButton />
             <ThemeToggle />
           </div>
         </div>
@@ -454,7 +453,7 @@ function TokenCard({ token, sessions, cars, getTokenStatus, getCarName, onExpire
             {!isArchived && (
               <div className="flex items-center gap-1">
                 <TokenShareMenu tokenCode={token.token_code} childName={token.guest_name} />
-                <MessageCenter tokenId={token.id} guestName={token.guest_name} />
+                <MessageButton tokenId={token.id} guestName={token.guest_name} />
                 
                 {/* Withhold Button */}
                 <Button 
@@ -467,28 +466,27 @@ function TokenCard({ token, sessions, cars, getTokenStatus, getCarName, onExpire
                   <PauseCircle className={`h-4 w-4 ${token.is_active ? 'text-warning' : 'text-muted-foreground'}`} />
                 </Button>
 
-                {/* Expire Button */}
-                <AlertDialog>
-                  <AlertDialogTrigger asChild>
-                    <Button variant="ghost" size="icon" className="h-9 w-9 text-destructive hover:text-destructive">
-                      <XCircle className="h-4 w-4" />
-                    </Button>
-                  </AlertDialogTrigger>
-                  <AlertDialogContent>
-                    <AlertDialogHeader>
-                      <AlertDialogTitle>Expire this token? 🤔</AlertDialogTitle>
-                      <AlertDialogDescription>
-                        This will permanently disable the token. {token.guest_name} won't be able to use it anymore.
-                      </AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter>
-                      <AlertDialogCancel>Cancel</AlertDialogCancel>
-                      <AlertDialogAction onClick={() => onExpire(token.id)} className="bg-destructive hover:bg-destructive/90">
-                        Yes, Expire It
-                      </AlertDialogAction>
-                    </AlertDialogFooter>
-                  </AlertDialogContent>
-                </AlertDialog>
+                {/* Expire Button - simple click with toast confirmation */}
+                <Button 
+                  variant="ghost" 
+                  size="icon" 
+                  className="h-9 w-9 text-destructive hover:text-destructive"
+                  onClick={() => {
+                    toast(`Expire token for ${token.guest_name}?`, {
+                      action: {
+                        label: 'Yes, Expire',
+                        onClick: () => onExpire(token.id)
+                      },
+                      cancel: {
+                        label: 'Cancel',
+                        onClick: () => {}
+                      }
+                    });
+                  }}
+                  title="Expire token"
+                >
+                  <XCircle className="h-4 w-4" />
+                </Button>
               </div>
             )}
           </div>

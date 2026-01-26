@@ -7,12 +7,12 @@ import { Slider } from '@/components/ui/slider';
 import { Car, Gauge, Clock, MapPin, AlertTriangle, Play, Square, Key, Fuel, OctagonX, Pause } from 'lucide-react';
 import { toast } from 'sonner';
 import { ThemeToggle } from '@/components/ThemeToggle';
-import { SeatBeltDialog } from '@/components/SeatBeltDialog';
+import { SeatBeltScreen } from '@/components/SeatBeltScreen';
 import { GuestActions } from '@/components/GuestActions';
 import { DemoInstructions } from '@/components/DemoInstructions';
 import { useSessionPersistence } from '@/hooks/useSessionPersistence';
-import { InactivityDetector } from '@/components/InactivityDetector';
-import { SessionFeedback } from '@/components/SessionFeedback';
+import { InactivityOverlay } from '@/components/InactivityOverlay';
+import { SessionFeedbackScreen } from '@/components/SessionFeedbackScreen';
 
 // Validated token data from RPC function
 interface ValidatedToken {
@@ -361,28 +361,30 @@ export default function TestCar() {
 
   return (
     <div className="min-h-screen bg-background p-4">
-      {/* Seat Belt Dialog */}
-      <SeatBeltDialog 
-        open={showSeatBeltDialog}
-        onConfirm={confirmSeatBeltAndStart}
-        guestName={token.guest_name}
-        carName={token.car_name}
-      />
+      {/* Seat Belt Screen */}
+      {showSeatBeltDialog && (
+        <SeatBeltScreen 
+          onConfirm={confirmSeatBeltAndStart}
+          guestName={token.guest_name}
+          carName={token.car_name}
+        />
+      )}
 
-      {/* Inactivity Detector */}
-      <InactivityDetector 
+      {/* Inactivity Overlay */}
+      <InactivityOverlay 
         isActive={driving && !isPaused}
         onInactivityAlert={handleInactivityAlert}
         timeoutMs={120000}
       />
 
-      {/* Session Feedback */}
-      <SessionFeedback 
-        open={showFeedback}
-        onClose={() => setShowFeedback(false)}
-        onSubmit={handleFeedbackSubmit}
-        vehicleName={token.car_name}
-      />
+      {/* Session Feedback Screen */}
+      {showFeedback && (
+        <SessionFeedbackScreen 
+          onClose={() => setShowFeedback(false)}
+          onSubmit={handleFeedbackSubmit}
+          vehicleName={token.car_name}
+        />
+      )}
 
       <div className="absolute top-4 right-4 flex items-center gap-2">
         <DemoInstructions variant="simulator" />
