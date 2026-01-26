@@ -302,6 +302,27 @@ export type Database = {
         }
         Relationships: []
       }
+      rpc_rate_limits: {
+        Row: {
+          attempt_count: number
+          function_name: string
+          identifier: string
+          window_start: string
+        }
+        Insert: {
+          attempt_count?: number
+          function_name: string
+          identifier: string
+          window_start?: string
+        }
+        Update: {
+          attempt_count?: number
+          function_name?: string
+          identifier?: string
+          window_start?: string
+        }
+        Relationships: []
+      }
       violations: {
         Row: {
           created_at: string
@@ -351,6 +372,16 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      check_rate_limit: {
+        Args: {
+          p_function: string
+          p_identifier: string
+          p_max_calls: number
+          p_window_seconds: number
+        }
+        Returns: boolean
+      }
+      cleanup_old_rate_limits: { Args: never; Returns: undefined }
       confirm_seat_belt: {
         Args: { p_session_id: string; p_session_secret: string }
         Returns: boolean
