@@ -8,6 +8,7 @@ import { AuthProvider } from "@/contexts/AuthContext";
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
 import Dashboard from "./pages/Dashboard";
+import CreateToken from "./pages/CreateToken";
 import Child from "./pages/Child";
 import TestCar from "./pages/TestCar";
 import NotFound from "./pages/NotFound";
@@ -26,6 +27,7 @@ const App = () => (
               <Route path="/" element={<Index />} />
               <Route path="/auth" element={<Auth />} />
               <Route path="/dashboard" element={<Dashboard />} />
+              <Route path="/create-token" element={<CreateToken />} />
               <Route path="/child" element={<Child />} />
               <Route path="/test-car" element={<TestCar />} />
               <Route path="*" element={<NotFound />} />
