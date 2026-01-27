@@ -23,7 +23,7 @@ export default function HowItWorks() {
   const ownerSteps: StepItem[] = [
     { 
       icon: Car, 
-      title: '1. Register Your Vehicles 🚗', 
+      title: '1. Register Your Vehicles', 
       desc: 'Add vehicles you want to share with guests',
       details: [
         'Click "Add Vehicle" in the Vehicles section',
@@ -194,7 +194,7 @@ export default function HowItWorks() {
 
           <TabsContent value="owner" className="space-y-4">
             <p className="text-sm text-muted-foreground text-center mb-4">
-              Welcome, Owner! 👋 Here's how to safely delegate vehicle access:
+              Welcome, Owner! Here's how to safely delegate vehicle access:
             </p>
             {ownerSteps.map((step, index) => (
               <Card key={index}>
@@ -225,7 +225,7 @@ export default function HowItWorks() {
 
           <TabsContent value="guest" className="space-y-4">
             <p className="text-sm text-muted-foreground text-center mb-4">
-              Hey Guest! 👋 Here's how to use your driving token:
+              Hey Guest! Here's how to use your driving token:
             </p>
             {guestSteps.map((step, index) => (
               <Card key={index}>

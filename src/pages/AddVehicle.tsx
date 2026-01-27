@@ -87,7 +87,7 @@ export default function AddVehicle() {
       if (error) {
         toast.error('Failed to update vehicle');
       } else {
-        toast.success('Vehicle updated successfully! 🚗');
+        toast.success('Vehicle updated successfully!');
         navigate('/dashboard');
       }
     } else {
@@ -98,7 +98,7 @@ export default function AddVehicle() {
       if (error) {
         toast.error('Failed to add vehicle');
       } else {
-        toast.success('Vehicle added successfully! 🚗');
+        toast.success('Vehicle added successfully!');
         navigate('/dashboard');
       }
     }
@@ -143,7 +143,7 @@ export default function AddVehicle() {
           <CardHeader className="pb-4">
             <CardTitle className="font-display flex items-center gap-2 text-xl">
               <Car className="h-6 w-6 text-primary" />
-              {editId ? 'Edit Vehicle ✏️' : 'Add New Vehicle 🚗'}
+              {editId ? 'Edit Vehicle' : 'Add New Vehicle'}
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-5">

@@ -22,7 +22,7 @@ export function HowItWorksGuide() {
   const ownerSteps: StepItem[] = [
     { 
       icon: Car, 
-      title: '1. Register Your Vehicles 🚗', 
+      title: '1. Register Your Vehicles', 
       desc: 'Add vehicles you want to share with guests',
       details: [
         'Click "Add Vehicle" in the Vehicles section',

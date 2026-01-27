@@ -9,7 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import { 
   Shield, Plus, Car, Activity, AlertTriangle, 
   Clock, Gauge, MapPin, Fuel, Archive, XCircle,
-  User, PauseCircle, Key
+  User, PauseCircle, Key, BarChart3, Users, LogOut
 } from 'lucide-react';
 import { toast } from 'sonner';
 import type { Database } from '@/integrations/supabase/types';
@@ -186,7 +186,7 @@ export default function Dashboard() {
     if (error) {
       toast.error('Failed to update token');
     } else {
-      toast.success(currentlyActive ? 'Token withheld! Guest access is paused ⏸️' : 'Token resumed! Guest can continue 🚗');
+      toast.success(currentlyActive ? 'Token withheld! Guest access is paused.' : 'Token resumed! Guest can continue.');
       fetchData();
     }
   };
@@ -248,8 +248,27 @@ export default function Dashboard() {
             </div>
           </div>
           <div className="flex items-center gap-2">
+            <Link to="/ai-summaries">
+              <Button variant="ghost" size="icon" className="h-9 w-9" title="AI Summaries">
+                <BarChart3 className="h-5 w-5" />
+              </Button>
+            </Link>
+            <Link to="/past-users">
+              <Button variant="ghost" size="icon" className="h-9 w-9" title="Past Users">
+                <Users className="h-5 w-5" />
+              </Button>
+            </Link>
             <HowItWorksButton />
             <ThemeToggle />
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              className="h-9 w-9 text-destructive hover:text-destructive"
+              onClick={() => signOut()}
+              title="Sign Out"
+            >
+              <LogOut className="h-5 w-5" />
+            </Button>
           </div>
         </div>
       </header>
@@ -352,7 +371,7 @@ export default function Dashboard() {
                 <CardContent className="py-12 text-center">
                   <Car className="h-12 w-12 mx-auto mb-4 text-muted-foreground/50" />
                   <p className="text-muted-foreground mb-2">No active tokens yet</p>
-                  <p className="text-sm text-muted-foreground">Create a token to share vehicle access 🚗</p>
+                  <p className="text-sm text-muted-foreground">Create a token to share vehicle access</p>
                 </CardContent>
               </Card>
             ) : (
@@ -410,11 +429,11 @@ function TokenCard({ token, sessions, cars, getTokenStatus, getCarName, onExpire
   const carName = getCarName(token.car_id);
 
   const statusConfig: Record<string, { bg: string; text: string; label: string }> = {
-    active: { bg: 'bg-success/10', text: 'text-success', label: '🟢 Active' },
-    pending: { bg: 'bg-warning/10', text: 'text-warning', label: '🟡 Ready' },
-    returned: { bg: 'bg-primary/10', text: 'text-primary', label: '↩️ Returned' },
-    expired: { bg: 'bg-muted', text: 'text-muted-foreground', label: '⏰ Expired' },
-    used: { bg: 'bg-muted', text: 'text-muted-foreground', label: '✓ Used' },
+    active: { bg: 'bg-success/10', text: 'text-success', label: 'Active' },
+    pending: { bg: 'bg-warning/10', text: 'text-warning', label: 'Ready' },
+    returned: { bg: 'bg-primary/10', text: 'text-primary', label: 'Returned' },
+    expired: { bg: 'bg-muted', text: 'text-muted-foreground', label: 'Expired' },
+    used: { bg: 'bg-muted', text: 'text-muted-foreground', label: 'Used' },
   };
 
   const config = statusConfig[status] || statusConfig.pending;

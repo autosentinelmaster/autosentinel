@@ -1,12 +1,10 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
-import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { ArrowLeft, User, Mail, Phone, Lock, Eye, EyeOff, Shield, Key } from 'lucide-react';
 import { toast } from 'sonner';
 import { PasswordStrength, validatePassword } from '@/components/PasswordStrength';
@@ -21,11 +19,6 @@ export default function Auth() {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [forgotPasswordOpen, setForgotPasswordOpen] = useState(false);
-  const [resetEmail, setResetEmail] = useState('');
-  const [resetLoading, setResetLoading] = useState(false);
-  
-  // Form fields
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -94,27 +87,6 @@ export default function Auth() {
     }
     // Navigate to guest view with token
     navigate(`/child?token=${token.replace(/\s/g, '').toUpperCase()}`);
-  };
-
-  const handleForgotPassword = async () => {
-    if (!resetEmail.trim()) {
-      toast.error('Please enter your email address');
-      return;
-    }
-
-    setResetLoading(true);
-    const { error } = await supabase.auth.resetPasswordForEmail(resetEmail, {
-      redirectTo: `${window.location.origin}/auth`,
-    });
-
-    if (error) {
-      toast.error(error.message);
-    } else {
-      toast.success('Password reset email sent! Check your inbox.');
-      setForgotPasswordOpen(false);
-      setResetEmail('');
-    }
-    setResetLoading(false);
   };
 
   return (
@@ -202,40 +174,9 @@ export default function Auth() {
                     <div className="space-y-2">
                       <div className="flex items-center justify-between">
                         <Label htmlFor="password">Password</Label>
-                        <Dialog open={forgotPasswordOpen} onOpenChange={setForgotPasswordOpen}>
-                          <DialogTrigger asChild>
-                            <button type="button" className="text-xs text-primary hover:underline">
-                              Forgot password?
-                            </button>
-                          </DialogTrigger>
-                          <DialogContent>
-                            <DialogHeader>
-                              <DialogTitle>Reset Password</DialogTitle>
-                              <DialogDescription>
-                                Enter your email address and we'll send you a link to reset your password.
-                              </DialogDescription>
-                            </DialogHeader>
-                            <div className="space-y-4 py-4">
-                              <div className="space-y-2">
-                                <Label htmlFor="resetEmail">Email Address</Label>
-                                <Input
-                                  id="resetEmail"
-                                  type="email"
-                                  placeholder="john@example.com"
-                                  value={resetEmail}
-                                  onChange={(e) => setResetEmail(e.target.value)}
-                                />
-                              </div>
-                              <Button 
-                                onClick={handleForgotPassword} 
-                                disabled={resetLoading}
-                                className="w-full"
-                              >
-                                {resetLoading ? 'Sending...' : 'Send Reset Link'}
-                              </Button>
-                            </div>
-                          </DialogContent>
-                        </Dialog>
+                        <Link to="/forgot-password" className="text-xs text-primary hover:underline">
+                          Forgot password?
+                        </Link>
                       </div>
                       <div className="relative">
                         <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />

@@ -75,7 +75,7 @@ export function CarManager({ onCarsChange }: CarManagerProps) {
         <div className="flex items-center justify-between">
           <CardTitle className="flex items-center gap-2 text-lg">
             <Car className="h-5 w-5 text-primary" />
-            My Vehicles 🚗
+            My Vehicles
           </CardTitle>
           <Link to="/add-vehicle">
             <Button size="sm" className="gap-1">
