@@ -333,7 +333,7 @@ export default function TestCar() {
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="p-4 bg-secondary rounded-lg text-sm">
-              <p className="font-medium mb-2">🚗 How to use:</p>
+              <p className="font-medium mb-2">How to use:</p>
               <ol className="list-decimal list-inside space-y-1 text-muted-foreground">
                 <li>Get a token code from the vehicle owner</li>
                 <li>Enter the code below to unlock the car</li>

@@ -44,7 +44,7 @@ export function SessionFeedback({ open, onClose, onSubmit, vehicleName }: Sessio
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-center justify-center">
             <Car className="h-5 w-5 text-primary" />
-            How was your ride? 🚗
+            How was your ride?
           </DialogTitle>
         </DialogHeader>
         <div className="py-4 space-y-6">

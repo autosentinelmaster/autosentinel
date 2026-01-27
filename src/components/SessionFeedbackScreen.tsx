@@ -44,7 +44,7 @@ export function SessionFeedbackScreen({ onClose, onSubmit, vehicleName }: Sessio
           <div className="text-center">
             <div className="flex items-center justify-center gap-2 mb-2">
               <Car className="h-6 w-6 text-primary" />
-              <h2 className="text-xl font-display font-bold">How was your ride? 🚗</h2>
+              <h2 className="text-xl font-display font-bold">How was your ride?</h2>
             </div>
             {vehicleName && (
               <p className="text-muted-foreground">

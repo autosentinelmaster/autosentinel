@@ -46,7 +46,7 @@ const Index = () => {
           
           <h1 className="text-4xl md:text-6xl font-display font-bold leading-tight">
             Safely Share Your Vehicle 
-            <span className="text-gradient"> With Anyone</span> 🚗
+            <span className="text-gradient"> With Anyone</span>
           </h1>
           
           <p className="text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto leading-relaxed">
