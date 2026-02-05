@@ -4,9 +4,10 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
-import { AlertTriangle, MessageCircle, Send, Undo2 } from 'lucide-react';
+ import { AlertTriangle, Undo2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { GuestChatDialog } from './GuestChatDialog';
+ import { ExtensionRequestDialog } from './ExtensionRequestDialog';
 
 interface GuestActionsProps {
   tokenCode: string;
@@ -14,12 +15,16 @@ interface GuestActionsProps {
   guestName: string;
   tokenId: string;
   onTokenReturned?: () => void;
+   currentLimits?: {
+     time_limit_minutes: number;
+     distance_limit_km: number;
+     speed_limit: number;
+     fuel_limit_percent: number;
+     geofence_radius_km: number;
+   };
 }
 
-export function GuestActions({ tokenCode, sessionSecret, guestName, tokenId, onTokenReturned }: GuestActionsProps) {
-  const [message, setMessage] = useState('');
-  const [sending, setSending] = useState(false);
-  const [messageDialogOpen, setMessageDialogOpen] = useState(false);
+ export function GuestActions({ tokenCode, sessionSecret, guestName, tokenId, onTokenReturned, currentLimits }: GuestActionsProps) {
 
   const sendSOS = async () => {
     const { data, error } = await supabase.rpc('send_sos', {
@@ -87,6 +92,15 @@ export function GuestActions({ tokenCode, sessionSecret, guestName, tokenId, onT
         guestName={guestName}
       />
 
+       {/* Request Extension */}
+       {currentLimits && (
+         <ExtensionRequestDialog
+           tokenCode={tokenCode}
+           sessionSecret={sessionSecret}
+           currentLimits={currentLimits}
+         />
+       )}
+ 
       {/* Return Token */}
       <AlertDialog>
         <AlertDialogTrigger asChild>

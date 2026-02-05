@@ -3,10 +3,17 @@ import { useSearchParams, useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Shield, Gauge, Clock, MapPin, AlertTriangle, CheckCircle, Car, Fuel, ArrowRight } from 'lucide-react';
+ import { Shield, Gauge, Clock, MapPin, AlertTriangle, CheckCircle, Car, Fuel, ArrowRight, HandHelping } from 'lucide-react';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import { DemoInstructions } from '@/components/DemoInstructions';
 
+ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+ import { Input } from '@/components/ui/input';
+ import { Label } from '@/components/ui/label';
+ import { Textarea } from '@/components/ui/textarea';
+ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+ import { toast } from 'sonner';
+ 
 // Validated token data from secure RPC function
 interface ValidatedToken {
   token_id: string;
@@ -29,6 +36,10 @@ export default function Child() {
   const [token, setToken] = useState<ValidatedToken | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+   const [requestOpen, setRequestOpen] = useState(false);
+   const [requestType, setRequestType] = useState('');
+   const [requestedValue, setRequestedValue] = useState('');
+   const [requestMessage, setRequestMessage] = useState('');
 
   useEffect(() => {
     if (tokenCode) {
@@ -62,6 +73,29 @@ export default function Child() {
   const goToSimulator = () => {
     navigate('/test-car');
   };
+ 
+   const getCurrentValue = (type: string): number => {
+     if (!token) return 0;
+     switch (type) {
+       case 'time': return token.time_limit_minutes;
+       case 'distance': return Number(token.distance_limit_km);
+       case 'speed': return token.speed_limit;
+       case 'fuel': return token.fuel_limit_percent;
+       case 'geofence': return Number(token.geofence_radius_km);
+       default: return 0;
+     }
+   };
+ 
+   const getUnit = (type: string): string => {
+     switch (type) {
+       case 'time': return 'minutes';
+       case 'distance': return 'km';
+       case 'speed': return 'km/h';
+       case 'fuel': return '%';
+       case 'geofence': return 'km';
+       default: return '';
+     }
+   };
 
   if (loading) {
     return (
@@ -141,6 +175,84 @@ export default function Child() {
           </CardContent>
         </Card>
 
+       {/* Request Extension Card */}
+       <Card className="bg-secondary/30">
+         <CardContent className="p-4 space-y-3">
+           <p className="text-sm text-muted-foreground">Need more time, distance, or other limits?</p>
+           <Dialog open={requestOpen} onOpenChange={setRequestOpen}>
+             <DialogTrigger asChild>
+               <Button variant="outline" className="w-full">
+                 <HandHelping className="h-4 w-4 mr-2" />
+                 Request Extension from Owner
+               </Button>
+             </DialogTrigger>
+             <DialogContent className="sm:max-w-md">
+               <DialogHeader>
+                 <DialogTitle className="flex items-center gap-2">
+                   <HandHelping className="h-5 w-5 text-primary" />
+                   Request Extension
+                 </DialogTitle>
+               </DialogHeader>
+               <div className="space-y-4">
+                 <div className="space-y-2">
+                   <Label>What do you need?</Label>
+                   <Select value={requestType} onValueChange={setRequestType}>
+                     <SelectTrigger>
+                       <SelectValue placeholder="Select what you need" />
+                     </SelectTrigger>
+                     <SelectContent>
+                       <SelectItem value="time"><span className="flex items-center gap-2"><Clock className="h-4 w-4" /> More Time</span></SelectItem>
+                       <SelectItem value="distance"><span className="flex items-center gap-2"><MapPin className="h-4 w-4" /> More Distance</span></SelectItem>
+                       <SelectItem value="speed"><span className="flex items-center gap-2"><Gauge className="h-4 w-4" /> Higher Speed Limit</span></SelectItem>
+                       <SelectItem value="fuel"><span className="flex items-center gap-2"><Fuel className="h-4 w-4" /> Higher Fuel Limit</span></SelectItem>
+                       <SelectItem value="geofence"><span className="flex items-center gap-2"><MapPin className="h-4 w-4" /> Larger Geofence</span></SelectItem>
+                     </SelectContent>
+                   </Select>
+                 </div>
+ 
+                 {requestType && (
+                   <>
+                     <div className="p-3 bg-secondary/50 rounded-lg text-sm">
+                       <p className="text-muted-foreground">Current limit: <span className="font-medium text-foreground">{getCurrentValue(requestType)} {getUnit(requestType)}</span></p>
+                     </div>
+ 
+                     <div className="space-y-2">
+                       <Label>Requested value ({getUnit(requestType)})</Label>
+                       <Input
+                         type="number"
+                         placeholder={`Enter new ${getUnit(requestType)}`}
+                         value={requestedValue}
+                         onChange={(e) => setRequestedValue(e.target.value)}
+                         min={getCurrentValue(requestType) + 1}
+                       />
+                     </div>
+ 
+                     <div className="space-y-2">
+                       <Label>Reason (optional)</Label>
+                       <Textarea
+                         placeholder="Why do you need this extension?"
+                         value={requestMessage}
+                         onChange={(e) => setRequestMessage(e.target.value)}
+                         maxLength={200}
+                         rows={2}
+                       />
+                     </div>
+                   </>
+                 )}
+ 
+                 <p className="text-xs text-muted-foreground">
+                   Note: You'll need to start a driving session first to send extension requests. Go to the simulator and start driving.
+                 </p>
+ 
+                 <Button variant="outline" onClick={() => setRequestOpen(false)} className="w-full">
+                   Close
+                 </Button>
+               </div>
+             </DialogContent>
+           </Dialog>
+         </CardContent>
+       </Card>
+ 
         <Card className="bg-secondary/30">
           <CardContent className="p-4 space-y-4">
             <p className="text-center text-sm text-muted-foreground">

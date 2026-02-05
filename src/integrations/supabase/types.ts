@@ -234,6 +234,50 @@ export type Database = {
           },
         ]
       }
+      extension_requests: {
+        Row: {
+          created_at: string
+          current_value: number
+          id: string
+          message: string | null
+          request_type: string
+          requested_value: number
+          responded_at: string | null
+          status: string
+          token_id: string
+        }
+        Insert: {
+          created_at?: string
+          current_value: number
+          id?: string
+          message?: string | null
+          request_type: string
+          requested_value: number
+          responded_at?: string | null
+          status?: string
+          token_id: string
+        }
+        Update: {
+          created_at?: string
+          current_value?: number
+          id?: string
+          message?: string | null
+          request_type?: string
+          requested_value?: number
+          responded_at?: string | null
+          status?: string
+          token_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "extension_requests_token_id_fkey"
+            columns: ["token_id"]
+            isOneToOne: false
+            referencedRelation: "driving_tokens"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       messages: {
         Row: {
           created_at: string
@@ -397,6 +441,16 @@ export type Database = {
       generate_token_code: { Args: never; Returns: string }
       return_token: {
         Args: { p_session_secret: string; p_token_code: string }
+        Returns: boolean
+      }
+      send_extension_request: {
+        Args: {
+          p_message?: string
+          p_request_type: string
+          p_requested_value: number
+          p_session_secret: string
+          p_token_code: string
+        }
         Returns: boolean
       }
       send_guest_message: {
