@@ -445,6 +445,13 @@ export default function TestCar() {
                 guestName={token.guest_name}
                 tokenId={token.token_id}
                 onTokenReturned={() => setTokenReturned(true)}
+             currentLimits={{
+               time_limit_minutes: token.time_limit_minutes,
+               distance_limit_km: Number(token.distance_limit_km),
+               speed_limit: token.speed_limit,
+               fuel_limit_percent: token.fuel_limit_percent,
+               geofence_radius_km: Number(token.geofence_radius_km)
+             }}
               />
             </CardContent>
           </Card>

@@ -9,7 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import { 
   Shield, Plus, Car, Activity, AlertTriangle, 
   Clock, Gauge, MapPin, Fuel, Archive, XCircle,
-  User, PauseCircle, Key, BarChart3, Users, LogOut
+   User, PauseCircle, Key, BarChart3, Users, LogOut, PlayCircle
 } from 'lucide-react';
 import { toast } from 'sonner';
 import type { Database } from '@/integrations/supabase/types';
@@ -191,11 +191,13 @@ export default function Dashboard() {
     }
   };
 
-  const getTokenStatus = (token: DrivingToken) => {
+   const getTokenStatus = (token: DrivingToken): string => {
     const now = new Date();
     const expiresAt = new Date(token.expires_at);
     if (token.is_returned) return 'returned';
     if (expiresAt < now) return 'expired';
+     // Withheld = used but not active (owner paused it)
+     if (token.is_used && !token.is_active) return 'withheld';
     if (token.is_active) return 'active';
     if (token.is_used) return 'used';
     return 'pending';
@@ -207,8 +209,8 @@ export default function Dashboard() {
     return car ? car.name : '(Deleted Vehicle)';
   };
 
-  const activeTokens = tokens.filter(t => ['pending', 'active'].includes(getTokenStatus(t)));
-  const archivedTokens = tokens.filter(t => ['expired', 'used', 'returned'].includes(getTokenStatus(t)));
+   const activeTokens = tokens.filter(t => ['pending', 'active', 'withheld'].includes(getTokenStatus(t)));
+   const archivedTokens = tokens.filter(t => ['expired', 'used', 'returned'].includes(getTokenStatus(t)));
   
   // Fixed: Only count sessions that are actually active
   const activeSessionsCount = sessions.filter(s => s.status === 'active').length;
@@ -434,12 +436,13 @@ function TokenCard({ token, sessions, cars, getTokenStatus, getCarName, onExpire
     returned: { bg: 'bg-primary/10', text: 'text-primary', label: 'Returned' },
     expired: { bg: 'bg-muted', text: 'text-muted-foreground', label: 'Expired' },
     used: { bg: 'bg-muted', text: 'text-muted-foreground', label: 'Used' },
+     withheld: { bg: 'bg-destructive/10', text: 'text-destructive', label: 'Withheld' },
   };
 
   const config = statusConfig[status] || statusConfig.pending;
 
   return (
-    <Card className={`overflow-hidden transition-all animate-in ${status === 'active' ? 'card-glow border-primary/30' : ''}`}>
+     <Card className={`overflow-hidden transition-all animate-in ${status === 'active' ? 'card-glow border-primary/30' : ''} ${status === 'withheld' ? 'border-destructive/30' : ''}`}>
       <CardContent className="p-4">
         <div className="space-y-3">
           {/* Header Row */}
@@ -478,11 +481,15 @@ function TokenCard({ token, sessions, cars, getTokenStatus, getCarName, onExpire
                 <Button 
                   variant="ghost" 
                   size="icon" 
-                  className="h-9 w-9"
-                  onClick={() => onWithhold(token.id, token.is_active)}
-                  title={token.is_active ? 'Withhold token' : 'Resume token'}
+                   className={`h-9 w-9 ${status === 'withheld' ? 'bg-success/10 hover:bg-success/20' : ''}`}
+                   onClick={() => onWithhold(token.id, status !== 'withheld')}
+                   title={status === 'withheld' ? 'Resume token (un-withhold)' : 'Withhold token'}
                 >
-                  <PauseCircle className={`h-4 w-4 ${token.is_active ? 'text-warning' : 'text-muted-foreground'}`} />
+                   {status === 'withheld' ? (
+                     <PlayCircle className="h-4 w-4 text-success" />
+                   ) : (
+                     <PauseCircle className={`h-4 w-4 ${status === 'active' ? 'text-warning' : 'text-muted-foreground'}`} />
+                   )}
                 </Button>
 
                 {/* Expire Button - simple click with toast confirmation */}
