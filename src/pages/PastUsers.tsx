@@ -1,13 +1,11 @@
 import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { ArrowLeft, Users, Star, Phone, AlertTriangle, Gauge, MapPin, Clock, Loader2 } from 'lucide-react';
 import { ThemeToggle } from '@/components/ThemeToggle';
-import { Button } from '@/components/ui/button';
-import logoIcon from '@/assets/logo-icon.png';
 import type { Database } from '@/integrations/supabase/types';
 
 type DrivingToken = Database['public']['Tables']['driving_tokens']['Row'];
@@ -243,24 +241,18 @@ export default function PastUsers() {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Header */}
-      <header className="border-b border-border bg-card/50 backdrop-blur-md sticky top-0 z-50">
-        <div className="container mx-auto px-4 py-3 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <Button variant="ghost" size="icon" onClick={() => navigate('/dashboard')} className="rounded-xl">
-              <ArrowLeft className="h-5 w-5" />
-            </Button>
-            <img src={logoIcon} alt="AutoSentinel" className="h-9 w-9 rounded-lg object-cover" />
-            <div className="hidden sm:block">
-              <h1 className="text-lg font-display font-bold">Past Users</h1>
-              <p className="text-xs text-muted-foreground">Driving history & ratings</p>
-            </div>
-          </div>
-          <ThemeToggle />
-        </div>
-      </header>
+      <div className="absolute top-4 right-4">
+        <ThemeToggle />
+      </div>
 
       <div className="container mx-auto px-4 py-6 max-w-3xl">
+        <Link 
+          to="/dashboard"
+          className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors mb-6"
+        >
+          <ArrowLeft className="h-4 w-4" /> Back to Dashboard
+        </Link>
+
         <div className="space-y-6 animate-in">
           <div>
             <h1 className="text-2xl font-display font-bold flex items-center gap-2">

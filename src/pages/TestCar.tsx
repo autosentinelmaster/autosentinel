@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Slider } from '@/components/ui/slider';
-import { Car, Gauge, Clock, MapPin, AlertTriangle, Play, Square, Key, Fuel, OctagonX, Pause, ArrowLeft } from 'lucide-react';
+import { Car, Gauge, Clock, MapPin, AlertTriangle, Play, Square, Key, Fuel, OctagonX, Pause } from 'lucide-react';
 import { toast } from 'sonner';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import { SeatBeltScreen } from '@/components/SeatBeltScreen';
@@ -56,30 +56,6 @@ export default function TestCar() {
   const geofenceRadius = token ? Number(token.geofence_radius_km) : 5;
   const distanceFromCenter = Math.sqrt(Math.pow(carPosition.x - 50, 2) + Math.pow(carPosition.y - 50, 2)) / 40 * geofenceRadius;
   const isOutsideGeofence = distanceFromCenter > geofenceRadius;
-
-  // Check token status periodically (for withhold/expire by owner)
-  const [unauthorized, setUnauthorized] = useState(false);
-  
-  useEffect(() => {
-    if (!driving || !tokenCode) return;
-    
-    const checkInterval = setInterval(async () => {
-      const { data } = await supabase.rpc('validate_driving_token', {
-        p_token_code: tokenCode.toUpperCase()
-      });
-      const result = data?.[0];
-      if (!result || !result.is_valid) {
-        setUnauthorized(true);
-        setDriving(false);
-        setIsPaused(false);
-        clearSession();
-        if (intervalRef.current) clearInterval(intervalRef.current);
-        toast.error('Your session has been terminated by the vehicle owner.');
-      }
-    }, 5000);
-    
-    return () => clearInterval(checkInterval);
-  }, [driving, tokenCode]);
 
   // Restore session on mount
   useEffect(() => {
@@ -327,21 +303,6 @@ export default function TestCar() {
     }));
   };
 
-  if (unauthorized) {
-    return (
-      <div className="min-h-screen bg-background flex items-center justify-center p-4">
-        <Card className="max-w-md w-full text-center animate-in border-destructive/30">
-          <CardContent className="py-12">
-            <AlertTriangle className="h-12 w-12 text-destructive mx-auto mb-4" />
-            <h2 className="text-xl font-bold mb-2">Session Unauthorized</h2>
-            <p className="text-muted-foreground mb-4">The vehicle owner has revoked your access. This token has been withheld or expired.</p>
-            <Button onClick={() => window.location.reload()}>Use Another Token</Button>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
-
   if (tokenReturned) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center p-4">
@@ -360,11 +321,6 @@ export default function TestCar() {
   if (!token) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center p-4">
-        <div className="absolute top-4 left-4">
-          <Button variant="ghost" size="icon" onClick={() => window.history.back()} className="rounded-xl">
-            <ArrowLeft className="h-5 w-5" />
-          </Button>
-        </div>
         <div className="absolute top-4 right-4 flex items-center gap-2">
           <DemoInstructions variant="simulator" />
           <ThemeToggle />

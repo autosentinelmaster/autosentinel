@@ -3,7 +3,7 @@ import { useSearchParams, useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
- import { Shield, Gauge, Clock, MapPin, AlertTriangle, CheckCircle, Car, Fuel, ArrowRight, HandHelping, ArrowLeft } from 'lucide-react';
+ import { Shield, Gauge, Clock, MapPin, AlertTriangle, CheckCircle, Car, Fuel, ArrowRight, HandHelping } from 'lucide-react';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import { DemoInstructions } from '@/components/DemoInstructions';
 
@@ -121,17 +121,12 @@ export default function Child() {
 
   return (
     <div className="min-h-screen bg-background p-4">
-      <div className="absolute top-4 left-4">
-        <Button variant="ghost" size="icon" onClick={() => navigate(-1)} className="rounded-xl">
-          <ArrowLeft className="h-5 w-5" />
-        </Button>
-      </div>
       <div className="absolute top-4 right-4 flex items-center gap-2">
         <DemoInstructions variant="guest" />
         <ThemeToggle />
       </div>
       
-      <div className="max-w-md mx-auto space-y-6 pt-12">
+      <div className="max-w-md mx-auto space-y-6">
         <div className="text-center">
           <Shield className="h-10 w-10 text-primary mx-auto mb-2" />
           <h1 className="text-2xl font-bold">Welcome, {token.guest_name}</h1>

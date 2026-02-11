@@ -1,4 +1,4 @@
-import { Shield, Car, ArrowRight, Zap, Lock, MessageSquare, Eye, Bell, Timer, MapPin, BarChart3, Users } from 'lucide-react';
+import { Shield, Car, ArrowRight, Zap, Lock, MessageSquare } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Link } from 'react-router-dom';
@@ -6,18 +6,9 @@ import { ThemeToggle } from '@/components/ThemeToggle';
 import logoIcon from '@/assets/logo-icon.png';
 
 const features = [
-  { icon: Lock, title: 'Secure Tokens', desc: 'Generate unique access codes with custom speed, time, distance, and geofence limits for every guest.' },
-  { icon: Eye, title: 'Real-Time Monitoring', desc: 'Track speed, location, fuel, and violations live from your dashboard as guests drive.' },
-  { icon: Bell, title: 'Instant Alerts', desc: 'Get notified of speed violations, geofence breaches, SOS calls, and inactivity in real-time.' },
-  { icon: Timer, title: 'Session Control', desc: 'Withhold, expire, or resume tokens instantly. Full control over every active session.' },
-  { icon: BarChart3, title: 'AI Summaries', desc: 'Generate detailed driving reports and accountability scores powered by AI analysis.' },
-  { icon: Users, title: 'Guest History', desc: 'Track every guest with ratings, violation history, and detailed usage stats across vehicles.' },
-];
-
-const steps = [
-  { num: '01', title: 'Register Vehicles', desc: 'Add your cars, bikes, or any vehicle to your fleet. Set fuel capacity and details.' },
-  { num: '02', title: 'Create a Token', desc: 'Set speed, time, distance, geofence, and fuel limits. Assign to a vehicle and guest.' },
-  { num: '03', title: 'Share & Monitor', desc: 'Share the token code. Watch everything live. Get alerts. Maintain full control.' },
+  { icon: Lock, title: 'Secure Tokens', desc: 'Generate unique access codes with customizable limits' },
+  { icon: Zap, title: 'Real-Time Monitoring', desc: 'Track speed, location, and fuel in real-time' },
+  { icon: MessageSquare, title: 'Instant Alerts', desc: 'Get notified of violations and SOS calls instantly' },
 ];
 
 const Index = () => {
@@ -25,19 +16,20 @@ const Index = () => {
     <div className="min-h-screen bg-background">
       {/* Header */}
       <header className="fixed top-0 left-0 right-0 z-50 bg-background/80 backdrop-blur-md border-b border-border">
-        <div className="container mx-auto px-6 h-16 flex items-center justify-between">
-          <Link to="/" className="flex items-center gap-2.5">
+        <div className="container mx-auto px-4 h-16 flex items-center justify-between">
+          <Link to="/" className="flex items-center gap-2">
             <img src={logoIcon} alt="AutoSentinel" className="h-8 w-8 rounded-lg object-cover" />
-            <span className="font-display font-bold text-lg tracking-tight">AutoSentinel</span>
+            <span className="font-display font-bold text-lg">AutoSentinel</span>
           </Link>
-          <nav className="hidden md:flex items-center gap-1 bg-card border border-border rounded-full px-1.5 py-1">
-            <Link to="/how-it-works" className="px-4 py-1.5 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors rounded-full">How It Works</Link>
-            <Link to="/test-car" className="px-4 py-1.5 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors rounded-full">Simulator</Link>
-            <Link to="/auth" className="px-4 py-1.5 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors rounded-full">Sign In</Link>
-          </nav>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-3">
             <ThemeToggle />
-            <Button asChild size="sm" className="rounded-full px-5">
+            <Button asChild variant="ghost" size="sm">
+              <Link to="/test-car">
+                <Car className="h-4 w-4 mr-2" />
+                Simulator
+              </Link>
+            </Button>
+            <Button asChild size="sm">
               <Link to="/auth">Get Started</Link>
             </Button>
           </div>
@@ -45,81 +37,60 @@ const Index = () => {
       </header>
 
       {/* Hero Section */}
-      <section className="pt-28 pb-16 md:pt-36 md:pb-24 px-6">
-        <div className="container mx-auto max-w-5xl">
-          <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-primary/10 text-primary rounded-full text-sm font-medium mb-8">
-            <Shield className="h-4 w-4" />
+      <section className="pt-32 pb-20 px-4 bg-gradient-section watermark-pattern">
+        <div className="container mx-auto max-w-4xl text-center space-y-8">
+          <div className="inline-flex items-center gap-2 px-4 py-2 bg-primary/10 text-primary rounded-full text-sm font-medium">
+            <Zap className="h-4 w-4" />
             AI-Powered Vehicle Access Control
           </div>
           
-          <h1 className="text-5xl md:text-7xl lg:text-8xl font-display font-bold leading-[0.95] tracking-tight mb-6">
-            Share Your<br />
-            Vehicle.<br />
-            <span className="text-gradient">Stay In Control.</span>
+          <h1 className="text-4xl md:text-6xl font-display font-bold leading-tight">
+            Safely Share Your Vehicle 
+            <span className="text-gradient"> With Anyone</span>
           </h1>
           
-          <div className="flex flex-col md:flex-row md:items-end justify-between gap-8 mt-8">
-            <p className="text-lg md:text-xl text-muted-foreground max-w-lg leading-relaxed">
-              Create permission tokens with custom limits. Monitor in real-time. 
-              Get instant alerts. Keep your vehicles safe while sharing access.
-            </p>
-            <div className="flex flex-col sm:flex-row gap-3">
-              <Button asChild size="lg" className="gap-2 text-base px-8 rounded-full">
-                <Link to="/auth">
-                  Start Free <ArrowRight className="h-5 w-5" />
-                </Link>
-              </Button>
-              <Button asChild variant="outline" size="lg" className="gap-2 text-base px-8 rounded-full">
-                <Link to="/test-car">
-                  <Car className="h-5 w-5" />
-                  Try Simulator
-                </Link>
-              </Button>
-            </div>
+          <p className="text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto leading-relaxed">
+            Create permission tokens with custom limits. Monitor in real-time. 
+            Get instant alerts. Keep your vehicles safe while sharing access.
+          </p>
+
+          <div className="flex flex-col sm:flex-row gap-4 justify-center pt-4">
+            <Button asChild size="lg" className="gap-2 text-lg px-8">
+              <Link to="/auth">
+                Start Free <ArrowRight className="h-5 w-5" />
+              </Link>
+            </Button>
+            <Button asChild variant="outline" size="lg" className="gap-2 text-lg px-8">
+              <Link to="/test-car">
+                <Car className="h-5 w-5" />
+                Try Simulator
+              </Link>
+            </Button>
           </div>
         </div>
       </section>
 
-      {/* Stats Bar */}
-      <section className="border-y border-border bg-card/50">
-        <div className="container mx-auto max-w-5xl px-6">
-          <div className="grid grid-cols-2 md:grid-cols-4 divide-x divide-border">
-            {[
-              { value: 'Real-Time', label: 'Live Monitoring' },
-              { value: 'AI', label: 'Smart Summaries' },
-              { value: '6+', label: 'Safety Controls' },
-              { value: '100%', label: 'Token Security' },
-            ].map((stat, i) => (
-              <div key={i} className="py-6 px-4 text-center">
-                <p className="text-2xl md:text-3xl font-display font-bold">{stat.value}</p>
-                <p className="text-sm text-muted-foreground mt-1">{stat.label}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* Features Grid */}
-      <section className="py-20 md:py-28 px-6">
+      {/* Features Section */}
+      <section className="py-20 px-4">
         <div className="container mx-auto max-w-5xl">
-          <div className="mb-14">
-            <h2 className="text-3xl md:text-5xl font-display font-bold tracking-tight mb-4">
-              Everything You Need
+          <div className="text-center mb-12">
+            <h2 className="text-3xl font-display font-bold mb-4">
+              Everything You Need 🛡️
             </h2>
-            <p className="text-lg text-muted-foreground max-w-xl">
-              From token creation to AI-powered accountability — full control over every vehicle interaction.
+            <p className="text-muted-foreground max-w-xl mx-auto">
+              From token creation to real-time monitoring, we've got you covered
             </p>
           </div>
 
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className="grid md:grid-cols-3 gap-6">
             {features.map((feature, index) => (
-              <Card key={index} className="group border border-border hover:border-primary/30 transition-all duration-300 hover:shadow-lg">
-                <CardContent className="p-6 space-y-4">
-                  <div className="h-12 w-12 rounded-2xl bg-primary/10 flex items-center justify-center group-hover:bg-primary/20 transition-colors">
-                    <feature.icon className="h-6 w-6 text-primary" />
+              <Card key={index} className="card-glow border-0 shadow-sm hover:shadow-lg transition-all duration-300">
+                <CardContent className="p-6 text-center space-y-4">
+                  <div className="h-14 w-14 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto">
+                    <feature.icon className="h-7 w-7 text-primary" />
                   </div>
-                  <h3 className="text-lg font-semibold tracking-tight">{feature.title}</h3>
-                  <p className="text-sm text-muted-foreground leading-relaxed">{feature.desc}</p>
+                  <h3 className="text-xl font-semibold">{feature.title}</h3>
+                  <p className="text-muted-foreground">{feature.desc}</p>
                 </CardContent>
               </Card>
             ))}
@@ -127,71 +98,58 @@ const Index = () => {
         </div>
       </section>
 
-      {/* How It Works */}
-      <section className="py-20 md:py-28 px-6 bg-gradient-section">
-        <div className="container mx-auto max-w-5xl">
-          <div className="mb-14">
-            <h2 className="text-3xl md:text-5xl font-display font-bold tracking-tight mb-4">
-              How It Works
+      {/* How It Works Preview */}
+      <section className="py-20 px-4 bg-gradient-section">
+        <div className="container mx-auto max-w-4xl text-center space-y-12">
+          <div>
+            <h2 className="text-3xl font-display font-bold mb-4">
+              Simple as 1-2-3 ✨
             </h2>
-            <p className="text-lg text-muted-foreground">
-              Get started in minutes, not hours.
+            <p className="text-muted-foreground">
+              Get started in minutes, not hours
             </p>
           </div>
 
-          <div className="grid md:grid-cols-3 gap-6">
-            {steps.map((step, i) => (
-              <div key={i} className="relative p-6 bg-card border border-border rounded-2xl group hover:border-primary/30 transition-all">
-                <span className="text-5xl font-display font-bold text-primary/15 group-hover:text-primary/25 transition-colors">{step.num}</span>
-                <h3 className="text-xl font-semibold mt-2 mb-2 tracking-tight">{step.title}</h3>
-                <p className="text-sm text-muted-foreground leading-relaxed">{step.desc}</p>
+          <div className="grid md:grid-cols-3 gap-8">
+            <div className="space-y-3">
+              <div className="h-12 w-12 rounded-full bg-primary text-primary-foreground flex items-center justify-center mx-auto text-xl font-bold">
+                1
               </div>
-            ))}
+              <h3 className="font-semibold">Add Vehicles</h3>
+              <p className="text-sm text-muted-foreground">Register your cars, bikes, or any vehicle</p>
+            </div>
+            <div className="space-y-3">
+              <div className="h-12 w-12 rounded-full bg-primary text-primary-foreground flex items-center justify-center mx-auto text-xl font-bold">
+                2
+              </div>
+              <h3 className="font-semibold">Create Token</h3>
+              <p className="text-sm text-muted-foreground">Set speed, time, and distance limits</p>
+            </div>
+            <div className="space-y-3">
+              <div className="h-12 w-12 rounded-full bg-primary text-primary-foreground flex items-center justify-center mx-auto text-xl font-bold">
+                3
+              </div>
+              <h3 className="font-semibold">Share & Monitor</h3>
+              <p className="text-sm text-muted-foreground">Track everything in real-time</p>
+            </div>
           </div>
 
-          <div className="mt-12 text-center">
-            <Button asChild size="lg" className="gap-2 rounded-full px-8">
-              <Link to="/auth">
-                Get Started Now <ArrowRight className="h-5 w-5" />
-              </Link>
-            </Button>
-          </div>
-        </div>
-      </section>
-
-      {/* CTA Section */}
-      <section className="py-20 md:py-28 px-6">
-        <div className="container mx-auto max-w-3xl text-center">
-          <img src={logoIcon} alt="AutoSentinel" className="h-14 w-14 rounded-2xl object-cover mx-auto mb-6" />
-          <h2 className="text-3xl md:text-5xl font-display font-bold tracking-tight mb-4">
-            Ready to take control?
-          </h2>
-          <p className="text-lg text-muted-foreground max-w-xl mx-auto mb-8">
-            Join AutoSentinel and share your vehicles with confidence. Real-time monitoring, AI insights, and complete control — all in one platform.
-          </p>
-          <div className="flex flex-col sm:flex-row gap-3 justify-center">
-            <Button asChild size="lg" className="gap-2 text-base px-8 rounded-full">
-              <Link to="/auth">
-                Create Free Account <ArrowRight className="h-5 w-5" />
-              </Link>
-            </Button>
-            <Button asChild variant="outline" size="lg" className="gap-2 text-base px-8 rounded-full">
-              <Link to="/how-it-works">
-                Learn More
-              </Link>
-            </Button>
-          </div>
+          <Button asChild size="lg" className="gap-2">
+            <Link to="/auth">
+              Get Started Now <ArrowRight className="h-5 w-5" />
+            </Link>
+          </Button>
         </div>
       </section>
 
       {/* Footer */}
-      <footer className="py-8 px-6 border-t border-border">
+      <footer className="py-8 px-4 border-t border-border">
         <div className="container mx-auto max-w-5xl flex flex-col md:flex-row items-center justify-between gap-4 text-sm text-muted-foreground">
-          <div className="flex items-center gap-2.5">
+          <div className="flex items-center gap-2">
             <img src={logoIcon} alt="AutoSentinel" className="h-6 w-6 rounded object-cover" />
-            <span>AutoSentinel &copy; 2026</span>
+            <span>AutoSentinel © 2026</span>
           </div>
-          <p>AI-Powered Vehicle Access Control</p>
+          <p>Powered by AI for safer mobility 🚀</p>
         </div>
       </footer>
     </div>

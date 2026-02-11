@@ -282,7 +282,7 @@ export default function CreateToken() {
                 size="lg"
                 disabled={submitting}
               >
-                {submitting ? 'Creating...' : 'Generate Token'}
+                {submitting ? 'Creating...' : 'Generate Token 🚀'}
               </Button>
             </div>
           </CardContent>

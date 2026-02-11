@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
@@ -9,7 +9,6 @@ import { Label } from '@/components/ui/label';
 import { ArrowLeft, Sparkles, Loader2, BarChart3, User, Calendar, Filter } from 'lucide-react';
 import { toast } from 'sonner';
 import { ThemeToggle } from '@/components/ThemeToggle';
-import logoIcon from '@/assets/logo-icon.png';
 import type { Database } from '@/integrations/supabase/types';
 
 type DrivingToken = Database['public']['Tables']['driving_tokens']['Row'];
@@ -182,24 +181,18 @@ export default function AISummaries() {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Header */}
-      <header className="border-b border-border bg-card/50 backdrop-blur-md sticky top-0 z-50">
-        <div className="container mx-auto px-4 py-3 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <Button variant="ghost" size="icon" onClick={() => navigate('/dashboard')} className="rounded-xl">
-              <ArrowLeft className="h-5 w-5" />
-            </Button>
-            <img src={logoIcon} alt="AutoSentinel" className="h-9 w-9 rounded-lg object-cover" />
-            <div className="hidden sm:block">
-              <h1 className="text-lg font-display font-bold">AI Summaries</h1>
-              <p className="text-xs text-muted-foreground">Intelligent driving reports</p>
-            </div>
-          </div>
-          <ThemeToggle />
-        </div>
-      </header>
+      <div className="absolute top-4 right-4">
+        <ThemeToggle />
+      </div>
 
       <div className="container mx-auto px-4 py-6 max-w-2xl">
+        <Link 
+          to="/dashboard"
+          className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors mb-6"
+        >
+          <ArrowLeft className="h-4 w-4" /> Back to Dashboard
+        </Link>
+
         <div className="space-y-6 animate-in">
           <div>
             <h1 className="text-2xl font-display font-bold flex items-center gap-2">
