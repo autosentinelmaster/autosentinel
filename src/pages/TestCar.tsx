@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Slider } from '@/components/ui/slider';
-import { Car, Gauge, Clock, MapPin, AlertTriangle, Play, Square, Key, Fuel, OctagonX, Pause } from 'lucide-react';
+import { Car, Gauge, Clock, MapPin, AlertTriangle, Play, Square, Key, Fuel, OctagonX, Pause, ArrowLeft } from 'lucide-react';
 import { toast } from 'sonner';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import { SeatBeltScreen } from '@/components/SeatBeltScreen';
@@ -360,6 +360,11 @@ export default function TestCar() {
   if (!token) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center p-4">
+        <div className="absolute top-4 left-4">
+          <Button variant="ghost" size="icon" onClick={() => window.history.back()} className="rounded-xl">
+            <ArrowLeft className="h-5 w-5" />
+          </Button>
+        </div>
         <div className="absolute top-4 right-4 flex items-center gap-2">
           <DemoInstructions variant="simulator" />
           <ThemeToggle />
