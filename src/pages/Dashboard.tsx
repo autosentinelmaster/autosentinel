@@ -345,6 +345,47 @@ export default function Dashboard() {
           </Card>
         </div>
 
+        {/* Vehicle Warnings - inspired by Toyota's Vehicle Warnings section */}
+        <Card className={`animate-in ${alerts.length > 0 && alerts.some(a => !a.is_read) ? 'border-warning/30' : ''}`}>
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="font-display font-semibold flex items-center gap-2">
+                <AlertTriangle className="h-5 w-5 text-warning" />
+                Vehicle Warnings
+              </h3>
+              {alerts.length > 0 && (
+                <Badge variant="secondary" className="text-xs">{alerts.length}</Badge>
+              )}
+            </div>
+            {alerts.length === 0 ? (
+              <div className="flex items-center gap-3 p-3 bg-success/5 rounded-xl">
+                <div className="h-8 w-8 rounded-full bg-success/10 flex items-center justify-center">
+                  <Shield className="h-4 w-4 text-success" />
+                </div>
+                <p className="text-sm text-muted-foreground">Your vehicles have no active alerts.</p>
+              </div>
+            ) : (
+              <div className="space-y-2 max-h-48 overflow-y-auto">
+                {alerts.slice(0, 5).map(alert => {
+                  const token = tokens.find(t => t.id === alert.token_id);
+                  return (
+                    <div key={alert.id} className="flex items-start gap-3 p-3 bg-secondary/50 rounded-xl">
+                      <div className={`h-2 w-2 rounded-full mt-2 flex-shrink-0 ${alert.is_read ? 'bg-muted-foreground/30' : 'bg-destructive'}`} />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium truncate">{alert.message}</p>
+                        <p className="text-xs text-muted-foreground mt-0.5">
+                          {token?.guest_name && `${token.guest_name} • `}
+                          {new Date(alert.created_at).toLocaleString()}
+                        </p>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
         {/* Vehicle Manager */}
         <CarManager onCarsChange={(newCars) => setCars(newCars)} />
 
