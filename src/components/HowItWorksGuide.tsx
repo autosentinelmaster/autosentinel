@@ -65,7 +65,7 @@ export function HowItWorksGuide() {
     },
     { 
       icon: Shield, 
-      title: '5. Manage & Control 🛡️', 
+      title: '5. Manage & Control', 
       desc: 'Withhold, expire, or manage tokens anytime',
       details: [
         'Withhold token temporarily to pause access',
@@ -79,7 +79,7 @@ export function HowItWorksGuide() {
   const guestSteps: StepItem[] = [
     { 
       icon: Key, 
-      title: '1. Receive Token Code 🔑', 
+      title: '1. Receive Token Code', 
       desc: 'Get the code from the vehicle owner',
       details: [
         'Owner will share a 12-character code',
@@ -89,7 +89,7 @@ export function HowItWorksGuide() {
     },
     { 
       icon: Play, 
-      title: '2. Start Your Session 🚀', 
+      title: '2. Start Your Session', 
       desc: 'Enter code and begin driving',
       details: [
         'Go to the Vehicle Simulator',
