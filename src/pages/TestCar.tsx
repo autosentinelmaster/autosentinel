@@ -57,6 +57,30 @@ export default function TestCar() {
   const distanceFromCenter = Math.sqrt(Math.pow(carPosition.x - 50, 2) + Math.pow(carPosition.y - 50, 2)) / 40 * geofenceRadius;
   const isOutsideGeofence = distanceFromCenter > geofenceRadius;
 
+  // Check token status periodically (for withhold/expire by owner)
+  const [unauthorized, setUnauthorized] = useState(false);
+  
+  useEffect(() => {
+    if (!driving || !tokenCode) return;
+    
+    const checkInterval = setInterval(async () => {
+      const { data } = await supabase.rpc('validate_driving_token', {
+        p_token_code: tokenCode.toUpperCase()
+      });
+      const result = data?.[0];
+      if (!result || !result.is_valid) {
+        setUnauthorized(true);
+        setDriving(false);
+        setIsPaused(false);
+        clearSession();
+        if (intervalRef.current) clearInterval(intervalRef.current);
+        toast.error('Your session has been terminated by the vehicle owner.');
+      }
+    }, 5000);
+    
+    return () => clearInterval(checkInterval);
+  }, [driving, tokenCode]);
+
   // Restore session on mount
   useEffect(() => {
     if (token && tokenCode) {
@@ -302,6 +326,21 @@ export default function TestCar() {
       y: Math.max(0, Math.min(100, prev.y + dy)),
     }));
   };
+
+  if (unauthorized) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center p-4">
+        <Card className="max-w-md w-full text-center animate-in border-destructive/30">
+          <CardContent className="py-12">
+            <AlertTriangle className="h-12 w-12 text-destructive mx-auto mb-4" />
+            <h2 className="text-xl font-bold mb-2">Session Unauthorized</h2>
+            <p className="text-muted-foreground mb-4">The vehicle owner has revoked your access. This token has been withheld or expired.</p>
+            <Button onClick={() => window.location.reload()}>Use Another Token</Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   if (tokenReturned) {
     return (
