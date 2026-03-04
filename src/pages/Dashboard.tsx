@@ -65,9 +65,15 @@ export default function Dashboard() {
       return;
     }
     fetchData();
+  }, [user, authLoading, navigate]);
+
+  // Set up realtime subscriptions only after tokens are loaded
+  useEffect(() => {
+    if (!user || tokens.length === 0) return;
     const cleanup = setupRealtimeSubscriptions();
     return cleanup;
-  }, [user, authLoading, navigate]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user, tokens.map(t => t.id).join(',')]);
 
 
   const fetchData = async () => {
@@ -116,16 +122,19 @@ export default function Dashboard() {
   };
 
   const setupRealtimeSubscriptions = () => {
+    const tokenIds = tokens.map(t => t.id);
+    const filterExpr = `token_id=in.(${tokenIds.join(',')})`;
+
     const sessionsChannel = supabase
       .channel('sessions-changes')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'driving_sessions' }, () => {
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'driving_sessions', filter: filterExpr }, () => {
         fetchData();
       })
       .subscribe();
 
     const alertsChannel = supabase
       .channel('alerts-changes')
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'alerts' }, (payload) => {
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'alerts', filter: filterExpr }, (payload) => {
         const newAlert = payload.new as Alert;
         setAlerts(prev => [newAlert, ...prev.slice(0, 9)]);
         toast.error(newAlert.message, {
@@ -139,7 +148,8 @@ export default function Dashboard() {
       .on('postgres_changes', { 
         event: 'INSERT', 
         schema: 'public', 
-        table: 'messages'
+        table: 'messages',
+        filter: filterExpr
       }, (payload) => {
         const msg = payload.new as Message;
         if (msg.is_sos) {
