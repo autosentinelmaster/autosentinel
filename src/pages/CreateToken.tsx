@@ -70,12 +70,13 @@ export default function CreateToken() {
 
   const generateTokenCode = () => {
     const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+    const randomBytes = new Uint8Array(12);
+    crypto.getRandomValues(randomBytes);
     let result = '';
-    for (let i = 0; i < 4; i++) result += chars[Math.floor(Math.random() * chars.length)];
-    result += '-';
-    for (let i = 0; i < 4; i++) result += chars[Math.floor(Math.random() * chars.length)];
-    result += '-';
-    for (let i = 0; i < 4; i++) result += chars[Math.floor(Math.random() * chars.length)];
+    for (let i = 0; i < 12; i++) {
+      result += chars[randomBytes[i] % chars.length];
+      if (i === 3 || i === 7) result += '-';
+    }
     return result;
   };
 
